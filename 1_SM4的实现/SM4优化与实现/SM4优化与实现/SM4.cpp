@@ -1,9 +1,5 @@
 #include"SM4.h"
 
-uint32_t rotate_left(uint32_t val, int b) {
-    return  (val << b) | (val >> (32 - b));
-}
-
 void SM4_Key_set(uint8_t* key, Keys* round_keys) {
     // 初始密钥
     uint32_t k[4];
@@ -32,23 +28,21 @@ void SM4_encrypt(uint8_t* input, uint8_t* enc_result, Keys* round_keys) {
     for (int i = 0; i < 16; i = i + 4) {
         x[i / 4] = (input[i] << 24) | (input[i + 1] << 16) | (input[i + 2] << 8) | (input[i + 3]);
     }
-
     //32轮轮函数
     for (int i = 0; i < 32; i++) {
         //异或轮密钥
         uint32_t tmp = x[1] ^ x[2] ^ x[3] ^ round_keys->rk[i];
-        printf(" %02X\n", tmp);
         //过S盒
         uint8_t b0 = SBox[uint8_t(tmp >> 24)];
         uint8_t b1 = SBox[uint8_t(tmp >> 16)];
         uint8_t b2 = SBox[uint8_t(tmp >> 8)];
         uint8_t b3 = SBox[uint8_t(tmp >> 0)];
         tmp = (b0 << 24) | (b1 << 16) | (b2 << 8) | (b3 << 0);
-        printf(" %02X\n", tmp);
         //线性变换L
-        tmp = x[0] ^ ((tmp << 2) | (tmp >> 30)) ^ ((tmp << 10) | (tmp >> 22))
+        tmp = x[0] ^ tmp^ ((tmp << 2) | (tmp >> 30)) ^ ((tmp << 10) | (tmp >> 22))
             ^ ((tmp << 18) | (tmp >> 14)) ^ ((tmp << 24) | (tmp >> 8));
         //交叉
+
         x[0] = x[1];
         x[1] = x[2];
         x[2] = x[3];
@@ -86,7 +80,7 @@ void SM4_decrypt(uint8_t* input, uint8_t* dnc_result, Keys* round_keys) {
         uint8_t b3 = SBox[uint8_t(tmp >> 0)];
         tmp = (b0 << 24) | (b1 << 16) | (b2 << 8) | (b3 << 0);
         //线性变换L
-        tmp = x[0] ^ ((tmp << 2) | (tmp >> 30)) ^ ((tmp << 10) | (tmp >> 22))
+        tmp = x[0] ^ tmp^ ((tmp << 2) | (tmp >> 30)) ^ ((tmp << 10) | (tmp >> 22))
             ^ ((tmp << 18) | (tmp >> 14)) ^ ((tmp << 24) | (tmp >> 8));
         //交叉
         x[0] = x[1];

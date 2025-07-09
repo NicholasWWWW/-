@@ -23,43 +23,59 @@ int main() {
         printf(" %02X", m[i]);
     }
     
-    cout << "\n加密：" << endl;
+    cout << "\n加密结果：" << endl;
     uint8_t enc[16 * 64] = { 0 };
-    //SM4_encrypt(m , enc, &sm4_roundkeys);
-    /*
-    uint8_t enc[16*64] = { 0 };
+
+
     for (int i = 0; i < 64; i++) {
         SM4_encrypt(m+i*16, enc+i*16, &sm4_roundkeys);
     }
     
-    for (int i = 0; i < 16*64; i++) {
+    for (int i = 0; i < 16 * 64; i++) {
         if (i % 16 == 0)cout << endl;
         printf(" %02X", enc[i]);
-    }*/
+    }/**/
     
-    /*
+    
     cout << "\n解密：" << endl;
     uint8_t dnc[16*64] = { 0 };
     for (int i = 0; i < 64; i++) {
         SM4_decrypt(enc + i * 16, dnc + i * 16, &sm4_roundkeys);
     }
     for (int i = 0; i < 16*64; i++) {
+        if (i % 16 == 0)cout << endl;
         printf(" %02X", dnc[i]);
-    }*/
+    }/**/
     
-    
-    //SM4_aes_encrypt(m, enc, &sm4_roundkeys);
-    /*
-    cout << "\n加密：" << endl;
+    cout << endl;
+    uint8_t sm4_aes_enc[32 * 32] = { 0 };
+    for (int i = 0; i < 32; i += 4) {  // 每次处理 4 个块（128B）
+        SM4_aes_encrypt(m + i * 32, sm4_aes_enc + i * 32, &sm4_roundkeys);
+    }
+    cout << "\n优化后加密结果：" << endl;
     for (int i = 0; i < 16 * 64; i++) {
         if (i % 16 == 0)cout << endl;
-        printf(" %02X", enc[i]);
-    }*/
-    
+        printf(" %02X", sm4_aes_enc[i]);
+    }
+
+    cout << "\n优化后解密结果：" << endl;
+    uint8_t sm4_aes_dnc[32*32] = { 0 };
+    for (int i = 0; i < 32; i += 4) {  // 每次处理 4 个块（128B）
+        SM4_aes_decrypt(sm4_aes_enc + i * 32, sm4_aes_dnc + i * 32, &sm4_roundkeys);
+    }
+    for (int i = 0; i < 16 * 64; i++) {
+        if (i % 16 == 0)cout << endl;
+        printf(" %02X", sm4_aes_dnc[i]);
+    } 
+
+    //S盒测试 
+    /*
     uint8_t m1[16 * 16] = { 0 };
     for (int i = 0; i < 256; i++) {
         m1[i] = i;
     }
+
+   
 
     __m256i tmp[16];
     cout << "\ntest" << endl;
@@ -74,4 +90,5 @@ int main() {
         if (i % 16 == 0)cout << endl;
         printf(" %02X", SBox[m1[i]]);
     }
+    */
 }
