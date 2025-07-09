@@ -1,5 +1,6 @@
 #pragma once
 #include<iostream>
+#include<immintrin.h>
 using namespace std;
 
 //密钥拓展参数
@@ -43,3 +44,5 @@ struct Keys {
 void SM4_Key_set(uint8_t* key, Keys* round_keys);//密钥生成
 void SM4_encrypt(uint8_t* input, uint8_t* enc_result, Keys* round_keys);
 void SM4_decrypt(uint8_t* input, uint8_t* dnc_result, Keys* round_keys);
+void mm_print_128(__m128i x);
+void mm_print(__m256i x);

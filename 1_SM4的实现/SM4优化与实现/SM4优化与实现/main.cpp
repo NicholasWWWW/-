@@ -22,16 +22,21 @@ int main() {
         if (i % 16 == 0)cout << endl;
         printf(" %02X", m[i]);
     }
-    /*
+    
     cout << "\n加密：" << endl;
+    uint8_t enc[16 * 64] = { 0 };
+    //SM4_encrypt(m , enc, &sm4_roundkeys);
+    /*
     uint8_t enc[16*64] = { 0 };
     for (int i = 0; i < 64; i++) {
         SM4_encrypt(m+i*16, enc+i*16, &sm4_roundkeys);
     }
+    
     for (int i = 0; i < 16*64; i++) {
+        if (i % 16 == 0)cout << endl;
         printf(" %02X", enc[i]);
-    }
-    */
+    }*/
+    
     /*
     cout << "\n解密：" << endl;
     uint8_t dnc[16*64] = { 0 };
@@ -40,32 +45,33 @@ int main() {
     }
     for (int i = 0; i < 16*64; i++) {
         printf(" %02X", dnc[i]);
-    }
-    */
+    }*/
+    
+    
+    //SM4_aes_encrypt(m, enc, &sm4_roundkeys);
     /*
-    SM4_aes_encrypt(m, enc, &sm4_roundkeys);
     cout << "\n加密：" << endl;
     for (int i = 0; i < 16 * 64; i++) {
+        if (i % 16 == 0)cout << endl;
         printf(" %02X", enc[i]);
+    }*/
+    
+    uint8_t m1[16 * 16] = { 0 };
+    for (int i = 0; i < 256; i++) {
+        m1[i] = i;
     }
-    */
+
+    __m256i tmp[16];
+    cout << "\ntest" << endl;
+    for (int i = 0; i < 8; i++) {
+        tmp[i] = _mm256_loadu_si256((const __m256i*)m1 + i);
+        tmp[i] = aes_SBOX(tmp[i]);
+        mm_print(tmp[i]);
+    }
 
 
-    __m256i tmp[4], output[4];
-    //加载数据
-    tmp[0] = _mm256_loadu_si256((const __m256i*)m);
-    tmp[0] = aes_SBOX(tmp[0]);
-    _mm256_storeu_si256((__m256i*)output + 0, tmp[0]);
-    cout << "\naes_SBOX测试：" << endl;
-    uint8_t* p = (uint8_t*)&output;
-    cout << endl;
-    for (int j = 0; j < 32; j++) {
-        printf("%02X ", p[j]);
-    } 
-    cout << endl;
-    for (int j = 0; j < 16; j++) {
-        printf("%02X ", SBox[m[j]]);
+    for (int i = 0; i < 256 ; i++) {
+        if (i % 16 == 0)cout << endl;
+        printf(" %02X", SBox[m1[i]]);
     }
-    cout << endl;
-    return 0;
 }

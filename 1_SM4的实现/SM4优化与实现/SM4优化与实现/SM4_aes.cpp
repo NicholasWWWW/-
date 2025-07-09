@@ -33,15 +33,19 @@ void SM4_aes_encrypt(uint8_t* input, uint8_t* enc_result, Keys* round_keys) {
         for (int j = 0; j < 32; j++) {
             printf("%02X ", p[j]);
         }
-    }
-    */
+    }*/
+    
     //32ÂÖ¼ÓÃÜ
+
     for (int i = 0; i < 32; i++) {
         //Òì»òÂÖÃÜÔ¿
         tmp[0] = _mm256_xor_si256(_mm256_xor_si256(x[1], x[2]),
             _mm256_xor_si256(x[3], _mm256_set1_epi32(round_keys->rk[i])));
+
         //¹ýSºÐ
+        mm_print(tmp[0]);
         tmp[0] = aes_SBOX(tmp[0]);
+        mm_print(tmp[0]);
         //L
         tmp[1] = _mm256_xor_si256(_mm256_slli_epi32(tmp[0],  2), _mm256_slli_epi32(tmp[0], 30));
         tmp[2] = _mm256_xor_si256(_mm256_slli_epi32(tmp[0], 10), _mm256_slli_epi32(tmp[0], 22));
