@@ -1,5 +1,6 @@
 #pragma once
 #include<iostream>
+#include<immintrin.h>
 using namespace std;
 
 //密钥拓展参数
@@ -35,7 +36,7 @@ static uint8_t SBox[256] = {
     0x0C, 0x96, 0x77, 0x7E, 0x65, 0xB9, 0xF1, 0x09, 0xC5, 0x6E, 0xC6, 0x84,
     0x18, 0xF0, 0x7D, 0xEC, 0x3A, 0xDC, 0x4D, 0x20, 0x79, 0xEE, 0x5F, 0x3E,
     0xD7, 0xCB, 0x39, 0x48 };
-//循坏左移
+
 struct Keys {
 	uint32_t rk[32];
 };;
@@ -43,6 +44,5 @@ struct Keys {
 void SM4_Key_set(uint8_t* key, Keys* round_keys);//密钥生成
 void SM4_encrypt(uint8_t* input, uint8_t* enc_result, Keys* round_keys);
 void SM4_decrypt(uint8_t* input, uint8_t* dnc_result, Keys* round_keys);
-
-void SM4_aes_encrypt(uint8_t* input, uint8_t* enc_result, Keys* round_keys);
-void SM4_aes_decrypt(uint8_t* input, uint8_t* dnc_result, Keys* round_keys);
+void mm_print_128(__m128i x);
+void mm_print(__m256i x);
