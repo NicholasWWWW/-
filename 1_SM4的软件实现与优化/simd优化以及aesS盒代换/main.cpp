@@ -1,5 +1,6 @@
 #include"SM4.h"
 #include"SM4_aes.h"
+
 int main() {
     unsigned char key[16 * 64] = { 0x01, 0x23, 0x45, 0x67, 0x89, 0xab,
                              0xcd, 0xef, 0xfe, 0xdc, 0xba, 0x98,
@@ -17,6 +18,7 @@ int main() {
     for (int i = 0; i < 32; i++) {
         printf(" %02X", sm4_roundkeys.rk[i]);
     }
+    //加密
     cout << "\n消息m：" << endl;
     for (int i = 0; i < 16*64; i++) {
         if (i % 16 == 0)cout << endl;
@@ -26,7 +28,7 @@ int main() {
     cout << "\n加密结果：" << endl;
     uint8_t enc[16 * 64] = { 0 };
 
-
+    //加密
     for (int i = 0; i < 64; i++) {
         SM4_encrypt(m+i*16, enc+i*16, &sm4_roundkeys);
     }
@@ -36,7 +38,7 @@ int main() {
         printf(" %02X", enc[i]);
     }/**/
     
-    
+	//解密
     cout << "\n解密：" << endl;
     uint8_t dnc[16*64] = { 0 };
     for (int i = 0; i < 64; i++) {

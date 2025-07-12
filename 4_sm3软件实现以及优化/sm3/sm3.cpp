@@ -127,6 +127,14 @@ void sm3_compress(sm3_ctx* ctx) {
 		W1[i] = W[i] ^ W[i + 4];
 	}
 
+	cout << endl;
+	cout << "W1:" << endl;
+	for (int i = 0; i < 64; i++)
+	{
+		cout << hex << W1[i] << endl;
+	}
+
+
     //消息压缩
     unsigned int SS1;
     unsigned int SS2;
@@ -204,7 +212,7 @@ void sm3(unsigned char* input, unsigned int iLen, unsigned char* output) {
 }
 
 void sm3_test() {
-	unsigned char input[] = "abcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcd";
+	unsigned char input[] = "abcdefghijklmn";
 	unsigned char output[32];
 	sm3(input, sizeof(input) - 1, output);
 	cout << "要加密的信息: " << input << endl;
@@ -212,7 +220,5 @@ void sm3_test() {
 	for (int i = 0; i < 32; i++) {
 		cout << hex << (int)output[i];
 	}
-	
-	cout << endl;
-	cout << "sm3加密网站给出结果"<< "24ce4fbaab353814f890561cbde3d10308c33ac6831ff74e236e8e0525b2cd4e";
+
 }
