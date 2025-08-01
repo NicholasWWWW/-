@@ -28,12 +28,12 @@
 分别完成SM4的轮密钥生成，加密以及解密操作
 1：**轮密钥生成**
 由函数SM4_Key_set()实现。首先获得初始密钥key，将其使用大端序存入数组k，然后将其作为sm4加密的输入，经过S盒以及L变换，运行32轮后得到轮密钥，并储存在round_keys中
-![alt text](image\image.png)
+![alt text](./image/image.png)
 2：**sm4加密**
 由函数SM4_encrypt()实现。首先将输入的密文换为大端序存入x中，然后对其进行32轮加密操作，每轮经过下面操作：X1，X2，X3先与轮密钥异或，将得到的值拆成四部分，过S盒后再整合之后，然后经过线性变换L，再与X0异或后得到心一轮的X3，将上一轮的X1，X2，X3作为下一轮的X0，X1，X2。如下图所示：
-![alt text](image\image-2.png)
+![alt text](./image/-2.png)
 代码如下：
-![alt text](image\image-1.png)
+![alt text](./image/-1.png)
 完成轮函数后，将最后一轮的结果反序输出，然后换为大端序返回结果到enc_result中
 ![alt text](image\image-3.png)
 3：**sm4解密**
