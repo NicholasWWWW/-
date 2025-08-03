@@ -6,7 +6,7 @@
 #include <ctime>
 #include<vector>
 using namespace std;
-#define N 4096
+#define N 256
 class TimeCounter {
 public:
     TimeCounter(void) {
@@ -23,7 +23,6 @@ public:
     void end() {
         QueryPerformanceCounter(&endTime);
         timeInterval = 1e3 * ((double)endTime.QuadPart - (double)startTime.QuadPart) / (double)CPUClock.QuadPart;
-        //ms
     }
 };
 void random_char_generator(unsigned char str[16]) {
@@ -49,18 +48,18 @@ void SM4_threads_encrypt(uint8_t key_set[N][16], uint8_t plain_set[N][16], uint8
     }
 }
 
-
 void SM4_threads_decrypt(uint8_t* input, uint8_t* dnc_result, Keys* round_keys);
 int main() {
     // 只初始化一次随机数种子
     srand(static_cast<unsigned int>(time(nullptr)));
 
     uint8_t key_set[N][16], plain_set[N][16], cipher_set[N][16];
-    init_set(key_set, N);
-    init_set(plain_set, N);
+    init_set(key_set);
+    init_set(plain_set);
     // 初始化密钥和明文
     for (int i = 0; i < N; i++) {
-        init_round_keys(key_set[i], &round_keys[i]);  // 为每个密钥生成轮密钥
+        Keys sm4_roundkeys;
+        SM4_Key_set(key_set[i], &sm4_roundkeys[i]);  // 为每个密钥生成轮密钥
     }
 
     // 获取CPU核心数
