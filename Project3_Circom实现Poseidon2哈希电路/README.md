@@ -23,7 +23,7 @@
 ➂ 进行$R_P$ 次Partial Round循环：每次循环中需要对state向量的所有元素依次完成异或轮常数AddRoundConstants(·)、第一个元素过S-盒S-Box和过线性层$M_{\mathcal{I}}$ 进行MDS Mixing操作；
 ➃ 进行$R_f$次Full Round循环：计算流程与步骤➁一致；
 ➄ 输出：在完成步骤1-4中总共$2R_f + R_P$次循环后，将state向量中的第二个元素作为哈希运算的结果输出；
-![alt text](./image/poseidon.png)
+![alt text](./image/Poseidon.png)
 
 #### 2. **Poseidon2代码实现**
 ##### (1). Poseidon2函数核心组件
