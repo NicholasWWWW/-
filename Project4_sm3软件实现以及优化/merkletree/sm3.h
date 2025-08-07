@@ -45,6 +45,7 @@ const uint32_t T_0 = 0x79cc4519, T_1 = 0x7a879d8a;
 
 
 void sm3_init(sm3_ctx* ctx);
+void sm3_input(sm3_ctx* ctx, const unsigned char* input, unsigned int length);
 void sm3_do(sm3_ctx* ctx, unsigned char* output);
 void sm3_compress(sm3_ctx* ctx);
 void sm3(unsigned char* input, unsigned int iLen, unsigned char* output);

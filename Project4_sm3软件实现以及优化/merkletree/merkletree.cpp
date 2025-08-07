@@ -69,14 +69,13 @@ void merkletree_leaf_sort(merkletree* tree,int* end) {
 	int i = *end;
 	while (i > 0) {
 		int b = memcmp(tree->leaves[i].msg, tree->leaves[i - 1].msg, 64);
-		if (b < 0) {
-			// Swap the leaves
+		if (b < 0) {//如果消息小于前一个消息，交换叶子节点位置
 			merkletree_leaf temp = tree->leaves[i];
 			tree->leaves[i] = tree->leaves[i - 1];
 			tree->leaves[i - 1] = temp;
 			i--;
 		}
-		else if (b == 0) {
+		else if (b == 0) {//如果消息相同，删除重复的叶子节点
 			delete tree->leaves[i].node;
 			for (int j = i; j < *end - 1; j++) {
 				tree->leaves[j] = tree->leaves[j + 1];
@@ -117,8 +116,9 @@ void merkletree_build(merkletree* tree, int leaf_size) {
 		t *= 2;
 	}
 	int l = t/2;
-	t = leaf_size - t / 2;
+	t = leaf_size - t / 2;//计算需要合并的叶子节点数量
 	next = head->next;
+	//合并叶子节点
 	for (int i = 0; i < t; i++) {
 		merkletree_node* merge = new merkletree_node;
 		merkletree_merge(next->node, next->next->node, merge);
@@ -126,6 +126,7 @@ void merkletree_build(merkletree* tree, int leaf_size) {
 		next->next = next->next->next;
 		next = next->next;
 	}
+	//剩余节点提升高度
 	if (t != 0) {
 		for (int i = 0; i < l - t; i++) {
 			next->node->level = (next->node->level) + 1;
@@ -133,7 +134,7 @@ void merkletree_build(merkletree* tree, int leaf_size) {
 		}
 	}
 	cout << "floor_setting:" << head->next->node->level << "complete!" << endl;
-	while (l > 1) {
+	while (l > 1) {//l为树的高度
 		next = head->next;
 		for (int i = 0; i < l / 2; i++) {
 			merkletree_node* merge = new merkletree_node;
@@ -165,14 +166,14 @@ vector<unsigned char*> InclusionProof_Set(unsigned char* msg, merkletree* root) 
 	}
 	merkletree_node* current = root->leaves[index].node;
 	while (current->parent != NULL) {
-		unsigned char* sibling = new unsigned char[65];
-		if (current->parent->left == current) {
-			memcpy(sibling, current->parent->right->hash, 64);
-			sibling[64] = '0';
+		unsigned char* sibling = new unsigned char[33];
+		if (current->parent->left == current) {//为左则提供右兄弟
+			memcpy(sibling, current->parent->right->hash, 32);
+			sibling[32] = '0';
 		}
-		else {
-			memcpy(sibling, current->parent->left->hash, 64);
-			sibling[64] = '1';
+		else {//为右则提供左兄弟
+			memcpy(sibling, current->parent->left->hash, 32);
+			sibling[32] = '1';
 		}
 		proof.push_back(sibling);
 		current = current->parent;
@@ -180,7 +181,7 @@ vector<unsigned char*> InclusionProof_Set(unsigned char* msg, merkletree* root) 
 	return proof;
 }
 bool InclusionProof_Verify(unsigned char* msg, vector<unsigned char*> proof, merkletree* root) {
-	unsigned char hash[64];
+	unsigned char hash[32];
 	unsigned char msg_[64];
 	memcpy(msg_, msg, 64);
 	sm3(msg_,sizeof(msg_), hash);
@@ -189,7 +190,7 @@ bool InclusionProof_Verify(unsigned char* msg, vector<unsigned char*> proof, mer
 	}
 	for (size_t i = 0; i < proof.size();i++) {
 		unsigned char combined_hash[64];
-		if (proof[i][64] == '0') {
+		if (proof[i][32] == '0') {
 			memcpy(combined_hash, hash, 32);
 			memcpy(combined_hash + 32, proof[i], 32);
 			sm3(combined_hash, sizeof(combined_hash) - 1, hash);
@@ -236,7 +237,7 @@ vector<unsigned char*> ExclusionProof_Set(unsigned char* msg, merkletree* root) 
 	memset(max, 0xFF, 64);
 	if (index == 0) {
 		proof = InclusionProof_Set(root->leaves[0].msg, root);
-		unsigned char* hash = new unsigned char[64];
+		unsigned char* hash = new unsigned char[32];
 		sm3(root->leaves[0].msg, sizeof(root->leaves[0].msg), hash);
 		proof.push_back(hash);
 		proof.push_back(zero);
@@ -245,7 +246,7 @@ vector<unsigned char*> ExclusionProof_Set(unsigned char* msg, merkletree* root) 
 	}
 	else if (index == root->leaf_size - 1) {
 		proof = InclusionProof_Set(root->leaves[root->leaf_size - 1].msg, root);
-		unsigned char* hash = new unsigned char[64];
+		unsigned char* hash = new unsigned char[32];
 		
 		sm3(root->leaves[root->leaf_size - 1].msg, sizeof(root->leaves[root->leaf_size - 1].msg), hash);
 		proof.push_back(hash);
@@ -255,7 +256,7 @@ vector<unsigned char*> ExclusionProof_Set(unsigned char* msg, merkletree* root) 
 	}
 	else {
 		proof = InclusionProof_Set(root->leaves[index].msg, root);
-		unsigned char* hash = new unsigned char[64];
+		unsigned char* hash = new unsigned char[32];
 		sm3(root->leaves[index].msg, sizeof(root->leaves[index].msg), hash);
 		proof.push_back(hash);
 		proof.push_back(root->leaves[index - 1].msg);
@@ -268,7 +269,7 @@ bool ExclusionProof_Verify(unsigned char* msg, vector<unsigned char*> proof, mer
 	if (n < 3) {
 		return false; // 证明无效
 	}
-	unsigned char hash[64];
+	unsigned char hash[32];
 	cout << "msg:";
 	for (int j = 0; j < 64; j++) {
 		cout << hex << setw(2) << setfill('0') << (int)msg[j];
@@ -289,10 +290,10 @@ bool ExclusionProof_Verify(unsigned char* msg, vector<unsigned char*> proof, mer
 
 	if (memcmp(proof[n - 2], msg, 64) < 0 and memcmp(proof[n - 1], msg, 64) > 0 or
 		memcmp(proof[n - 2], msg, 64) == 0 or memcmp(proof[n - 1], msg, 64) == 0) {
-		memcpy(hash, proof[n - 3], 64);
+		memcpy(hash, proof[n - 3], 32);
 		for (size_t i = 0; i < n - 3; i++) {
 			unsigned char combined_hash[64];
-			if (proof[i][64] == '0') {
+			if (proof[i][32] == '0') {
 				memcpy(combined_hash, hash, 32);
 				memcpy(combined_hash + 32, proof[i], 32);
 				sm3(combined_hash, sizeof(combined_hash) - 1, hash);
@@ -354,8 +355,8 @@ void merkletree_build_test() {
 void merkletree_InclusionProof_test() {
 	cout << "----------------存在性证明测试----------------\n";
 	merkletree* root = new merkletree;
-	merkletree_build(root, 3);
-	vector<unsigned char*> proof = InclusionProof_Set(root->leaves[1].msg, root);
+	merkletree_build(root, 10);
+	vector<unsigned char*> proof = InclusionProof_Set(root->leaves[0].msg, root);
 	cout << "Verfiy result:" << InclusionProof_Verify(root->leaves[1].msg, proof, root) << endl;
 
 	cout << endl;
@@ -366,9 +367,23 @@ void merkletree_ExclusionProof_test(){
 	cout << "----------------不存在性证明测试----------------\n";
 	merkletree* root = new merkletree;
 	merkletree_build(root, 10);
-	unsigned char hash[64];
+	unsigned char hash[32];
 	unsigned char msg[64] = {0};
 	msg_get(msg);
 	vector<unsigned char*> proof = ExclusionProof_Set(msg, root);
 	cout <<"Verfiy result:"<< ExclusionProof_Verify(msg, proof, root) << endl;
+}
+void merkletree_100000_test() {
+	cout << "----------------100000节点Merkle树测试----------------\n";
+	merkletree* root = new merkletree;
+	merkletree_build(root, 100000);
+	cout << "----------------存在性证明测试----------------\n";
+	vector<unsigned char*> proof = InclusionProof_Set(root->leaves[1].msg, root);
+	cout << "Verfiy result:" << InclusionProof_Verify(root->leaves[1].msg, proof, root) << endl;
+	cout << "----------------不存在性证明测试----------------\n";
+	unsigned char msg[64] = { 0 };
+	msg_get(msg);
+	proof = ExclusionProof_Set(msg, root);
+	cout << "Verfiy result:" << ExclusionProof_Verify(msg, proof, root) << endl;
+
 }

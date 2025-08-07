@@ -11,7 +11,7 @@ using namespace std;
 
 //树节点，包含哈希值，节点层次，左右子节点及父节点指针
 struct merkletree_node {
-	unsigned char hash[64];
+	unsigned char hash[32];
 	int level = 0;
 	merkletree_node* left ;
 	merkletree_node* right ;
@@ -59,3 +59,4 @@ void merkletree_leaf_sort_test();
 void merkletree_build_test();
 void merkletree_InclusionProof_test();
 void merkletree_ExclusionProof_test();
+void merkletree_100000_test();

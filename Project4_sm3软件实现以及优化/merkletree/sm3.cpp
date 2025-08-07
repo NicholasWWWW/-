@@ -1,5 +1,10 @@
 #include"sm3.h"
-
+#include <random>
+#include<string>
+#include <ctime>
+#include <iomanip>
+#include <chrono>
+#include <cmath>
 
 void ctx_print(sm3_ctx* ctx) {
 	cout << "State: ";
@@ -75,7 +80,6 @@ void sm3_do(sm3_ctx* ctx, unsigned char* output) {
 	for (int i = 0; i < 8; i++) {
 		ctx->buf[56 + i] = msglen[i];
 	}
-
 
 	sm3_compress(ctx);
 
@@ -184,7 +188,6 @@ void sm3_compress(sm3_ctx* ctx) {
 	}
 
 
-
 	// V(i+1) = ABCDEFGH ^ V(i)
 	ctx->state[0] ^= A;
 	ctx->state[1] ^= B;
@@ -211,7 +214,7 @@ void sm3_test() {
 	cout << "要加密的信息: " << input << endl;
 	cout << "SM3 Hash加密结果: ";
 	for (int i = 0; i < 32; i++) {
-		cout << hex << (int)output[i];
+		cout << hex << setw(2) << setfill('0') << (int)output[i];
 	}
 
 }
