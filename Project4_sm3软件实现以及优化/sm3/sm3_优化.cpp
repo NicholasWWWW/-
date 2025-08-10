@@ -70,6 +70,7 @@ void sm3_pro_do(sm3_ctx* ctx, unsigned char* output) {
 void sm3_pro_compress(sm3_ctx* ctx) {
 	__m128i xmm[16] = {0},tmp;
 	uint32_t W1[64] = {0};
+	uint32_t W[64] = { 0 };
 
 	xmm[0] = _mm_loadu_si128((const __m128i*)(ctx->buf + 0));   // 字 0,1,2,3
 	xmm[1] = _mm_loadu_si128((const __m128i*)(ctx->buf + 12));  // 字 3,4,5,6
@@ -97,6 +98,7 @@ void sm3_pro_compress(sm3_ctx* ctx) {
 
 
 	// 第1段
+	_mm_storeu_si128((__m128i*)W, xmm[0]);
 	xmm[7] = ROTL_32(xmm[4], 15);
 	xmm[7] = _mm_xor_si128(xmm[7], xmm[2]);
 	xmm[7] = _mm_shuffle_epi32(xmm[7], _MM_SHUFFLE(0, 3, 2, 1));
@@ -112,8 +114,11 @@ void sm3_pro_compress(sm3_ctx* ctx) {
 	xmm[0] = _mm_xor_si128(xmm[6], xmm[9]);
 	xmm[5] = _mm_alignr_epi8(xmm[0], xmm[4], 12);
 	_mm_storeu_si128((__m128i*)W1, xmm[15]);
-	mm_print_128(xmm[15]);
+
+
+
 	// 第2段
+	_mm_storeu_si128((__m128i*)(W + 3), xmm[1]);
 	xmm[8] = ROTL_32(xmm[5], 15);
 	xmm[8] = _mm_xor_si128(xmm[8], xmm[3]);
 	xmm[8] = _mm_shuffle_epi32(xmm[8], _MM_SHUFFLE(0, 3, 2, 1));
@@ -131,6 +136,7 @@ void sm3_pro_compress(sm3_ctx* ctx) {
 	_mm_storeu_si128((__m128i*)(W1+3), xmm[0]);
 
 	// 第3段
+	_mm_storeu_si128((__m128i*)(W + 6), xmm[2]);
 	xmm[9] = ROTL_32(xmm[6], 15);
 	xmm[9] = _mm_xor_si128(xmm[9], xmm[4]);
 	xmm[9] = _mm_shuffle_epi32(xmm[9], _MM_SHUFFLE(0, 3, 2, 1));
@@ -148,6 +154,7 @@ void sm3_pro_compress(sm3_ctx* ctx) {
 	_mm_storeu_si128((__m128i*)(W1+6), xmm[1]);
 
 	// 第4段
+	_mm_storeu_si128((__m128i*)(W + 9), xmm[3]);
 	xmm[10] = ROTL_32(xmm[7], 15);
 	xmm[10] = _mm_xor_si128(xmm[10], xmm[5]);
 	xmm[10] = _mm_shuffle_epi32(xmm[10], _MM_SHUFFLE(0, 3, 2, 1));
@@ -165,6 +172,7 @@ void sm3_pro_compress(sm3_ctx* ctx) {
 	_mm_storeu_si128((__m128i*)(W1 + 9), xmm[2]);
 
 	// 第5段
+	_mm_storeu_si128((__m128i*)(W + 12), xmm[4]);
 	xmm[11] = ROTL_32(xmm[8], 15);
 	xmm[11] = _mm_xor_si128(xmm[11], xmm[6]);
 	xmm[11] = _mm_shuffle_epi32(xmm[11], _MM_SHUFFLE(0, 3, 2, 1));
@@ -182,6 +190,7 @@ void sm3_pro_compress(sm3_ctx* ctx) {
 	_mm_storeu_si128((__m128i*)(W1 + 12), xmm[3]);
 
 	// 第6段
+	_mm_storeu_si128((__m128i*)(W + 15), xmm[5]);
 	xmm[12] = ROTL_32(xmm[9], 15);
 	xmm[12] = _mm_xor_si128(xmm[12], xmm[7]);
 	xmm[12] = _mm_shuffle_epi32(xmm[12], _MM_SHUFFLE(0, 3, 2, 1));
@@ -199,6 +208,7 @@ void sm3_pro_compress(sm3_ctx* ctx) {
 	_mm_storeu_si128((__m128i*)(W1 + 15), xmm[4]);
 
 	// 第7段
+	_mm_storeu_si128((__m128i*)(W + 18), xmm[6]);
 	xmm[13] = ROTL_32(xmm[10], 15);
 	xmm[13] = _mm_xor_si128(xmm[13], xmm[8]);
 	xmm[13] = _mm_shuffle_epi32(xmm[13], _MM_SHUFFLE(0, 3, 2, 1));
@@ -216,6 +226,7 @@ void sm3_pro_compress(sm3_ctx* ctx) {
 	_mm_storeu_si128((__m128i*)(W1 + 18), xmm[5]);
 
 	// 第8段
+	_mm_storeu_si128((__m128i*)(W + 21), xmm[7]);
 	xmm[14] = ROTL_32(xmm[11], 15);
 	xmm[14] = _mm_xor_si128(xmm[14], xmm[9]);
 	xmm[14] = _mm_shuffle_epi32(xmm[14], _MM_SHUFFLE(0, 3, 2, 1));
@@ -233,6 +244,7 @@ void sm3_pro_compress(sm3_ctx* ctx) {
 	_mm_storeu_si128((__m128i*)(W1 + 21), xmm[6]);
 
 	// 第9段
+	_mm_storeu_si128((__m128i*)(W + 24), xmm[8]);
 	xmm[15] = ROTL_32(xmm[12], 15);
 	xmm[15] = _mm_xor_si128(xmm[15], xmm[10]);
 	xmm[15] = _mm_shuffle_epi32(xmm[15], _MM_SHUFFLE(0, 3, 2, 1));
@@ -250,6 +262,7 @@ void sm3_pro_compress(sm3_ctx* ctx) {
 	_mm_storeu_si128((__m128i*)(W1 + 24), xmm[7]);
 
 	// 第10段
+	_mm_storeu_si128((__m128i*)(W + 27), xmm[9]);
 	xmm[0] = ROTL_32(xmm[13], 15);
 	xmm[0] = _mm_xor_si128(xmm[0], xmm[11]);
 	xmm[0] = _mm_shuffle_epi32(xmm[0], _MM_SHUFFLE(0, 3, 2, 1));
@@ -267,6 +280,7 @@ void sm3_pro_compress(sm3_ctx* ctx) {
 	_mm_storeu_si128((__m128i*)(W1 + 27), xmm[8]);
 
 	// 第11段
+	_mm_storeu_si128((__m128i*)(W + 30), xmm[10]);
 	xmm[1] = ROTL_32(xmm[14], 15);
 	xmm[1] = _mm_xor_si128(xmm[1], xmm[12]);
 	xmm[1] = _mm_shuffle_epi32(xmm[1], _MM_SHUFFLE(0, 3, 2, 1));
@@ -284,6 +298,7 @@ void sm3_pro_compress(sm3_ctx* ctx) {
 	_mm_storeu_si128((__m128i*)(W1 + 30), xmm[9]);
 
 	// 第12段
+	_mm_storeu_si128((__m128i*)(W + 33), xmm[11]);
 	xmm[2] = ROTL_32(xmm[15], 15);
 	xmm[2] = _mm_xor_si128(xmm[2], xmm[13]);
 	xmm[2] = _mm_shuffle_epi32(xmm[2], _MM_SHUFFLE(0, 3, 2, 1));
@@ -301,6 +316,7 @@ void sm3_pro_compress(sm3_ctx* ctx) {
 	_mm_storeu_si128((__m128i*)(W1 + 33), xmm[10]);
 
 	// 第13段
+	_mm_storeu_si128((__m128i*)(W + 36), xmm[12]);
 	xmm[3] = ROTL_32(xmm[0], 15);
 	xmm[3] = _mm_xor_si128(xmm[3], xmm[14]);
 	xmm[3] = _mm_shuffle_epi32(xmm[3], _MM_SHUFFLE(0, 3, 2, 1));
@@ -318,6 +334,7 @@ void sm3_pro_compress(sm3_ctx* ctx) {
 	_mm_storeu_si128((__m128i*)(W1 + 36), xmm[11]);
 
 	// 第14段
+	_mm_storeu_si128((__m128i*)(W + 39), xmm[13]);
 	xmm[4] = ROTL_32(xmm[1], 15);
 	xmm[4] = _mm_xor_si128(xmm[4], xmm[15]);
 	xmm[4] = _mm_shuffle_epi32(xmm[4], _MM_SHUFFLE(0, 3, 2, 1));
@@ -335,6 +352,7 @@ void sm3_pro_compress(sm3_ctx* ctx) {
 	_mm_storeu_si128((__m128i*)(W1 + 39), xmm[12]);
 
 	// 第15段
+	_mm_storeu_si128((__m128i*)(W + 42), xmm[14]);
 	xmm[5] = ROTL_32(xmm[2], 15);
 	xmm[5] = _mm_xor_si128(xmm[5], xmm[0]);
 	xmm[5] = _mm_shuffle_epi32(xmm[5], _MM_SHUFFLE(0, 3, 2, 1));
@@ -352,6 +370,7 @@ void sm3_pro_compress(sm3_ctx* ctx) {
 	_mm_storeu_si128((__m128i*)(W1 + 42), xmm[13]);
 
 	// 第16段
+	_mm_storeu_si128((__m128i*)(W + 45), xmm[15]);
 	xmm[6] = ROTL_32(xmm[3], 15);
 	xmm[6] = _mm_xor_si128(xmm[6], xmm[1]);
 	xmm[6] = _mm_shuffle_epi32(xmm[6], _MM_SHUFFLE(0, 3, 2, 1));
@@ -369,6 +388,7 @@ void sm3_pro_compress(sm3_ctx* ctx) {
 	_mm_storeu_si128((__m128i*)(W1 + 45), xmm[14]);
 
 	// 第17段
+	_mm_storeu_si128((__m128i*)(W + 48), xmm[0]);
 	xmm[7] = ROTL_32(xmm[4], 15);
 	xmm[7] = _mm_xor_si128(xmm[7], xmm[2]);
 	xmm[7] = _mm_shuffle_epi32(xmm[7], _MM_SHUFFLE(0, 3, 2, 1));
@@ -386,6 +406,11 @@ void sm3_pro_compress(sm3_ctx* ctx) {
 	_mm_storeu_si128((__m128i*)(W1 + 48), xmm[15]);
 
 	// 第18段
+	_mm_storeu_si128((__m128i*)(W + 51), xmm[1]);
+	_mm_storeu_si128((__m128i*)(W + 54), xmm[2]);
+	_mm_storeu_si128((__m128i*)(W + 57), xmm[3]);
+	_mm_storeu_si128((__m128i*)(W + 60), xmm[4]);
+	_mm_storeu_si32((__m128i*)(W + 63), xmm[5]);
 	xmm[8] = ROTL_32(xmm[5], 15);
 	xmm[8] = _mm_xor_si128(xmm[8], xmm[3]);
 	xmm[8] = _mm_shuffle_epi32(xmm[8], _MM_SHUFFLE(0, 3, 2, 1));
@@ -411,18 +436,33 @@ void sm3_pro_compress(sm3_ctx* ctx) {
 	{
 		cout << hex << W1[i] << endl;
 	}
-
-
-
-
-
+	cout << endl;
+	cout << "W:" << endl;
+	for (int i = 0; i < 64; i++)
+	{
+		cout << hex << W[i] << endl;
+	}
+	cout << endl;
 	return;
+	//消息压缩
+	unsigned int SS1;
+	unsigned int SS2;
+	unsigned int TT1;
+	unsigned int TT2;
+	unsigned int A, B, C, D, E, F, G, H;
+	unsigned int Tj;
+	int j;
 
-	// 消息扩展
+	// ABCDEFGH = V (i)
+	A = ctx->state[0];
+	B = ctx->state[1];
+	C = ctx->state[2];
+	D = ctx->state[3];
+	E = ctx->state[4];
+	F = ctx->state[5];
+	G = ctx->state[6];
+	H = ctx->state[7];
 	
-	
-
-	/*
 	for (j = 0; j < 64; j++)
 	{
 
@@ -469,7 +509,7 @@ void sm3_pro_compress(sm3_ctx* ctx) {
 	ctx->state[5] ^= F;
 	ctx->state[6] ^= G;
 	ctx->state[7] ^= H;
-*/
+
 }
 
 void sm3_pro(unsigned char* input, unsigned int iLen, unsigned char* output) {
