@@ -1,5 +1,5 @@
 
-## Project 5: SM2 算法的Python软件实现与优化
+## Project 5: a).SM2 算法的Python软件实现与优化
 #### 项目分工
 | 姓名 | 分工                     |
 |-------|--------------------------|
@@ -49,7 +49,71 @@ sm2算法涉及到三类辅助函数：密码杂凑函数、密钥派生函数�
 6. 计算$u =Hash(x_2||M'||y_2)$,从$C$中取出比特串$C_3$，若$u\neq C_3$，则报错并退出 ；
 7. 输出明文$M'$。
 
-#### 2. SM2椭圆曲线加解密算法Pytho实现
+##### (3).数字签名的生成算法及流程
+设待签名的消息为 \( M \)，为了获取消息 \( M \) 的数字签名 \( (r,s) \)，作为签名者的用户A应实现以下运算步骤：
+
+1. 置 \( M=Z_A \parallel M \)；  
+2. 计算 \( e = H_v(M) \)，将 \( e \) 的数据类型转换为整数；  
+3. 用随机数发生器产生随机数 \( k \in [1,n-1] \)；  
+4. 计算椭圆曲线点 \( (x_1,y_1)=[k]G \)，将 \( x_1 \) 的数据类型转换为整数；  
+5. 计算 \( r=(e+x_1) \mod n \)，若 \( r=0 \) 或 \( r+k=n \) 则返3；  
+6. 计算 \( s = ((1+d_A)^{-1} \cdot (k-r\cdot d_A)) \mod n \)，若 \( s=0 \) 则返回3；  
+7. 将 \( r, s \) 的数据类型转换为字符串，消息 \( M \) 的签名为 \( (r,s) \)。  
+##### (4).数字签名的验证算法及流程
+为了检验收到的消息 \( M' \) 及其数字签名 \((r', s')\)，作为验证者的用户B应实现以下运算步骤：
+1. 检验 \( r' \in [1, n-1] \) 是否成立，若不成立则验证不通过；  
+2. 检验 \( s' \in [1, n-1] \) 是否成立，若不成立则验证不通过；  
+3. 置 \( M = Z_A \parallel M' \)；  
+4. 计算 \( e' = H_v (M') \)，将 \( e' \) 的数据类型转换为整数；  
+5. 将 \( r', s' \) 的数据类型转换为整数，计算 \( t = (r' + s') \, \text{mod} n \)，若 \( t = 0 \)，则验证不通过；  
+6. 计算椭圆曲线点 \((x_1', y_1') = [s'] G + [t] P_A \)；  
+7. 将 \( x_1' \) 的数据类型转换为整数，计算 \( R = (e' + x_1') \, \text{mod} n \)，检验 \( R = r' \) 是否成立，若成立则验证通过；否则验证不通过
+#### 2. SM2椭圆曲线签名算法Python实现
+##### (1).数字签名的生成算法实现
+```python
+def sm2_sign(M: bytes, user_id, d_A: int, xb: int, yb: int):
+    """ SM2签名算法 """
+    #拼接消息 M = ZA || M
+    ZA = compute_user_hash(user_id, xb, yb)
+    M_prime = ZA.encode('utf-8') + M
+    e_bytes = sm3.sm3_hash(list(M_prime))
+    e = int(e_bytes, 16)   
+    k = getRandomRange(1, n - 1)  # 生成随机数 k ∈ [1, n-1]
+    x1, y1 = ec_multiply_point(k, Gx, Gy) # 计算椭圆曲线点 (x1, y1) = [k]G
+    r = (e + x1) % n            # 计算 r = (e + x1) mod n 
+    # 计算 s = ((1 + d_A)⁻¹ · (k - r·d_A)) mod n
+    s_value = inverse(1 + d_A, n)
+    s = s_value* (k - r * d_A) % n 
+    return (r, s)
+```
+##### (2).数字签名的生成算法实现
+```python
+def sm2_verify_signature(M_prime: bytes, user_id, signature,  xb: int, yb: int) :
+    """ SM2签名验证算法 """
+    r_, s_ = signature
+    # 检验 r' ∈ [1, n-1], s' ∈ [1, n-1]
+    if not (0 < r_ < n and 0 < s_ < n):
+        return False    
+    # M = ZA || M' 
+    ZA = compute_user_hash(user_id, xb, yb)   
+    M_ = ZA.encode('utf-8') + M_prime
+    #计算 e' = H_v(M) 并转换为整数
+    e_bytes = sm3.sm3_hash(list(M_))
+    e_ = int(e_bytes, 16)   
+    # 计算 t = (r' + s') mod n
+    t = (r_+ s_) % n
+    # 计算椭圆曲线点 (x1', y1') = [s']G + [t]P_A
+    s_Gx, s_Gy = ec_multiply_point(s_ % n, Gx, Gy)
+    # 计算 [t]P_A
+    tPAx, tPAy = ec_multiply_point(t % n, xb, yb)
+    # 点相加: [s']G + [t]P_A
+    x1_prime, y1_prime = ec_add_point(s_Gx, s_Gy, tPAx, tPAy)
+    #计算 R = (e' + x1') mod n
+    R = (e_ + x1_prime) % n
+    # 检验 R = r' 是否成立 
+    return R == r_
+```
+#### 3. SM2椭圆曲线加解密算法Python实现
 - 椭圆曲线点加法函数:在有限域GF(p)下运算，返回新点坐标(x3,y3)
 ```python
 def ec_add_point(x1, y1, x2, y2): 
@@ -146,7 +210,7 @@ def sm2_encrypt(M: bytes, xb, yb):
 ![alt text](./image/test.png)
 
 
-#### 3. SM2密码算法改进尝试
+#### 4. SM2密码算法改进尝试
 ##### (1).实现 SM2 曲线参数特化的快速模约减、模逆元算法。 
 SM2曲线推荐参数中，素数$p$为广义梅森素数$p=2^{256}-2^{224}-2^{96}+2^{64}-1$,利用广义梅森素数的性质，可以实现针对 psm2p256 特化的快速模约减、模逆元算法，从而提高模约减和模逆元的速度。
 -  快速模约减算法, 利用 p 的特殊形式，我们可以实现高效的模约减：
@@ -269,3 +333,5 @@ def ec_multiply_fixed_base(k, precomputed_table):
                 result = SM2.ec_add_point(result[0], result[1], point[0], point[1])
     return result
 ```
+#### 5. 测试样例
+![alt text](./image/test.png)
