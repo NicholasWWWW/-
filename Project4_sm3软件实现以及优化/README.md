@@ -225,6 +225,297 @@ void sm3_test() {
 ![alt text](./image/image-15.png)
 ![alt text](./image/image-16.png)
 ##### 2:**SM3的优化**
+由于SM3采用了MD结构，每一块的运算基于上一块的哈希结果，因此在块与块之间的压缩很难优化。而消息填充部分占用的资源很少，也没有优化的必要。这里把优化重心放在SM3的压缩函数上。其可分为2部分，第一部分为消息拓展，第二部分为消息压缩。
+
+对于消息拓展部分，观察其计算方法，发现每次能够同时进行三个数据的计算
+![alt text](image.png)
+因此，这里考虑使用SIMD优化，首先将buf作为W的前16位输入导入xmm
+```c++
+//压缩函数
+void sm3_pro_compress(sm3_ctx* ctx) {
+	__m128i xmm[16] = {0},tmp;
+	uint32_t W1[64] = {0};
+	uint32_t W[64] = { 0 };
+
+	xmm[0] = _mm_loadu_si128((const __m128i*)(ctx->buf + 0));   // 字 0,1,2,3
+	xmm[1] = _mm_loadu_si128((const __m128i*)(ctx->buf + 12));  // 字 3,4,5,6
+	xmm[2] = _mm_loadu_si128((const __m128i*)(ctx->buf + 24));  // 字 6,7,8,9
+	xmm[3] = _mm_loadu_si128((const __m128i*)(ctx->buf + 36));  // 字 9,10,11,12
+	xmm[4] = _mm_loadu_si128((const __m128i*)(ctx->buf + 48));  // 字 12,13,14,15
+
+	//换为大端序
+	__m128i vindex = _mm_setr_epi8(3, 2, 1, 0, 7, 6, 5, 4, 11, 10, 9, 8, 15, 14, 13, 12);
+	xmm[0] = _mm_shuffle_epi8(xmm[0], vindex);
+	xmm[1] = _mm_shuffle_epi8(xmm[1], vindex);
+	xmm[2] = _mm_shuffle_epi8(xmm[2], vindex);
+	xmm[3] = _mm_shuffle_epi8(xmm[3], vindex);
+	xmm[4] = _mm_shuffle_epi8(xmm[4], vindex);
+```
+注意，这里导入时，xmm0导入字0，1，2，3；xmm1导入3，4，5，6，以此类推。如此一来，每次更新一个xmm（例如更新xmm5为字15，16，17，18）实际上都更新了3个字，这样写利于维护数组的统一。
+
+然后是每轮W数组与Wi的更新，这里采取的策略如下：
+以前两轮为例，第一轮使用xmm0到xmm4计算下三个W的值并存储于xmm5；通过xmm0的前3位与xmm1的后三位异或，结果存于xmm15，然后导入Wi的三位；提取出xmm0的前三位更新W的三位。
+```c++
+	//消息拓展
+	// 
+	// 第1段
+	_mm_storeu_si128((__m128i*)W, xmm[0]);
+	xmm[7] = ROTL_32(xmm[4], 15);
+	xmm[7] = _mm_xor_si128(xmm[7], xmm[2]);
+	xmm[7] = _mm_shuffle_epi32(xmm[7], _MM_SHUFFLE(0, 3, 2, 1));
+	xmm[6] = _mm_xor_si128(xmm[7], xmm[0]);
+	xmm[7] = ROTL_32(xmm[6], 23);
+	xmm[9] = ROTL_32(xmm[6], 15);
+	xmm[6] = _mm_xor_si128(xmm[6], xmm[7]);
+	xmm[6] = _mm_xor_si128(xmm[6], xmm[9]);
+	xmm[5] = _mm_shuffle_epi32(xmm[3], _MM_SHUFFLE(0, 3, 2, 1));
+	xmm[9] = ROTL_32(xmm[1], 7);
+	xmm[9] = _mm_xor_si128(xmm[9], xmm[5]);
+	xmm[15] = _mm_xor_si128(xmm[0], _mm_shuffle_epi32(xmm[1], _MM_SHUFFLE(0, 3, 2, 1)));
+	xmm[0] = _mm_xor_si128(xmm[6], xmm[9]);
+	xmm[5] = _mm_alignr_epi8(xmm[0], xmm[4], 12);
+	_mm_storeu_si128((__m128i*)W1, xmm[15]);
+```
+这一段是根据下面老师PPT中的代码制作的。但实际实现中发现老师给的这一段是有问题的，后几步的计算是错误的。后面根据自己的理解对其做了修改，纠正了一些错误，然后实现了对W和Wi的导出
+![alt text](image-1.png)
+
+对于第二轮，可以看出，经过第一轮的运算，有效数据已经从xmm0到xmm4变为了xmm1到xmm5，以此将其中所有的运算中数字的编号+1并对16取余。后面的轮数以此类推。
+```c++
+	// 第2段
+	_mm_storeu_si128((__m128i*)(W + 3), xmm[1]);
+	xmm[8] = ROTL_32(xmm[5], 15);
+	xmm[8] = _mm_xor_si128(xmm[8], xmm[3]);
+	xmm[8] = _mm_shuffle_epi32(xmm[8], _MM_SHUFFLE(0, 3, 2, 1));
+	xmm[7] = _mm_xor_si128(xmm[8], xmm[1]);
+	xmm[8] = ROTL_32(xmm[7], 23);
+	xmm[10] = ROTL_32(xmm[7], 15);
+	xmm[7] = _mm_xor_si128(xmm[7], xmm[8]);
+	xmm[7] = _mm_xor_si128(xmm[7], xmm[10]);
+	xmm[6] = _mm_shuffle_epi32(xmm[4], _MM_SHUFFLE(0, 3, 2, 1));
+	xmm[10] = ROTL_32(xmm[2], 7);
+	xmm[10] = _mm_xor_si128(xmm[10], xmm[6]);
+	xmm[0] = _mm_xor_si128(xmm[1], _mm_shuffle_epi32(xmm[2], _MM_SHUFFLE(0, 3, 2, 1)));
+	xmm[1] = _mm_xor_si128(xmm[7], xmm[10]);
+	xmm[6] = _mm_alignr_epi8(xmm[1], xmm[5], 12); // W19-W21
+	_mm_storeu_si128((__m128i*)(W1+3), xmm[0]);
+```
+此处需要计算W[16~68]一共52个数，每轮计算3个，因此是18轮的运算。第18轮时导入剩余的未导入的数据。至此完成消息拓展部分的优化
+```c++
+	// 第18段
+	_mm_storeu_si128((__m128i*)(W + 51), xmm[1]);
+	_mm_storeu_si128((__m128i*)(W + 54), xmm[2]);
+	_mm_storeu_si128((__m128i*)(W + 57), xmm[3]);
+	_mm_storeu_si128((__m128i*)(W + 60), xmm[4]);
+	_mm_storeu_si32((__m128i*)(W + 63), xmm[5]);
+	xmm[8] = ROTL_32(xmm[5], 15);
+	xmm[8] = _mm_xor_si128(xmm[8], xmm[3]);
+	xmm[8] = _mm_shuffle_epi32(xmm[8], _MM_SHUFFLE(0, 3, 2, 1));
+	xmm[7] = _mm_xor_si128(xmm[8], xmm[1]);
+	xmm[8] = ROTL_32(xmm[7], 23);
+	xmm[10] = ROTL_32(xmm[7], 15);
+	xmm[7] = _mm_xor_si128(xmm[7], xmm[8]);
+	xmm[7] = _mm_xor_si128(xmm[7], xmm[10]);
+	xmm[6] = _mm_shuffle_epi32(xmm[4], _MM_SHUFFLE(0, 3, 2, 1));
+	xmm[10] = ROTL_32(xmm[2], 7);
+	xmm[10] = _mm_xor_si128(xmm[10], xmm[6]);
+	xmm[0] = _mm_xor_si128(xmm[1], _mm_shuffle_epi32(xmm[2], _MM_SHUFFLE(0, 3, 2, 1)));
+	xmm[1] = _mm_xor_si128(xmm[7], xmm[10]);
+	xmm[6] = _mm_alignr_epi8(xmm[1], xmm[5], 12); // W67-W69
+	_mm_storeu_si128((__m128i*)(W1 + 51), xmm[0]);
+	_mm_storeu_si128((__m128i*)(W1 + 54), _mm_xor_si128(xmm[2], _mm_shuffle_epi32(xmm[3], _MM_SHUFFLE(0, 3, 2, 1))));
+	_mm_storeu_si128((__m128i*)(W1 + 57), _mm_xor_si128(xmm[3], _mm_shuffle_epi32(xmm[4], _MM_SHUFFLE(0, 3, 2, 1))));
+	_mm_storeu_si128((__m128i*)(W1 + 60), _mm_xor_si128(xmm[4], _mm_shuffle_epi32(xmm[5], _MM_SHUFFLE(0, 3, 2, 1))));
+	_mm_storeu_si32((__m128i*)(W1 + 63), _mm_xor_si128(xmm[5], _mm_shuffle_epi32(xmm[6], _MM_SHUFFLE(0, 3, 2, 1))));
+```
+然后是消息压缩部分，将每轮的流程简化为下图形式：
+![alt text](image-2.png)
+可以观察到，TT1与TT2，R（B）与R（F）分别可以并行执行。这里使用OpenMP库来实现并行
+
+而且每轮结束时所做的重新赋值完全可以省略，将A，C保持变，B经过移位后储存于原位，D赋值为TT1，在下一轮时将D视为A，A视为B，B视为C，C视为D，即可完成正确的流程。也可以发现，经过四轮后，寄存器的位置会回归正确，而sm3的消息压缩为64轮，是4的倍数，因此最终位置是正确的
+```c++
+		D = C;
+		C = ROTL(B, 9);
+		B = A;
+		A = TT1;
+		H = G;
+		G = ROTL(F, 19);
+		F = E;
+		E = P_0(TT2);
+```
+因此，有如下优化：
+每4轮：
+```c++
+	//round1
+	SS1 = ROTL((ROTL(A, 12) + E + ROTL(T_0, 0)), 7);
+	SS2 = SS1 ^ ROTL(A, 12);
+#pragma omp sections
+	{
+#pragma omp section
+		{ D = FF_0(A, B, C) + D + SS2 + W1[0]; }
+
+#pragma omp section
+		{ H = P_0(GG_0(E, F, G) + H + SS1 + W[0]); }
+	}
+
+#pragma omp sections
+	{
+#pragma omp section
+		{ B = ROTL(B, 9); }
+
+#pragma omp section
+		{ F = ROTL(F, 19); }
+	}
+
+	//round2
+	SS1 = ROTL((ROTL(D, 12) + H + ROTL(T_0, 1)), 7);
+	SS2 = SS1 ^ ROTL(D, 12);
+#pragma omp sections
+	{
+#pragma omp section
+		{ C = FF_0(D, A, B) + C + SS2 + W1[1]; }
+
+#pragma omp section
+		{ G = P_0(GG_0(H, E, F) + G + SS1 + W[1]); }
+	}
+
+#pragma omp sections
+	{
+#pragma omp section
+		{ A = ROTL(A, 9); }
+
+#pragma omp section
+		{ E = ROTL(E, 19); }
+	}
+
+	//round3
+	SS1 = ROTL((ROTL(C, 12) + G + ROTL(T_0, 2)), 7);
+	SS2 = SS1 ^ ROTL(C, 12);
+#pragma omp sections
+	{
+#pragma omp section
+		{ B = FF_0(C, D, A) + B + SS2 + W1[2]; }
+
+#pragma omp section
+		{ F = P_0(GG_0(G, H, E) + F + SS1 + W[2]); }
+	}
+
+#pragma omp sections
+	{
+#pragma omp section
+		{ D = ROTL(D, 9); }
+
+#pragma omp section
+		{ H = ROTL(H, 19); }
+	}
+
+	//round4
+	SS1 = ROTL((ROTL(B, 12) + F + ROTL(T_0, 3)), 7);
+	SS2 = SS1 ^ ROTL(B, 12);
+#pragma omp sections
+	{
+#pragma omp section
+		{ A = FF_0(B, C, D) + A + SS2 + W1[3]; }
+
+#pragma omp section
+		{ E = P_0(GG_0(F, G, H) + E + SS1 + W[3]); }
+	}
+
+#pragma omp sections
+	{
+#pragma omp section
+		{ C = ROTL(C, 9); }
+
+#pragma omp section
+		{ G = ROTL(G, 19); }
+	}
+```
+
+注意前16轮与后48轮所使用的T与FF，GG函数有差别，需替换。
+
+17轮以后相应函数与常量替换：
+```c++
+	//round17
+	SS1 = ROTL((ROTL(A, 12) + E + ROTL(T_1, 16)), 7);
+	SS2 = SS1 ^ ROTL(A, 12);
+#pragma omp sections
+	{
+#pragma omp section
+		{ D = FF_1(A, B, C) + D + SS2 + W1[16]; }
+
+#pragma omp section
+		{ H = P_0(GG_1(E, F, G) + H + SS1 + W[16]); }
+	}
+
+#pragma omp sections
+	{
+#pragma omp section
+		{ B = ROTL(B, 9); }
+
+#pragma omp section
+		{ F = ROTL(F, 19); }
+	}
+```
+其中的
+```c++
+#pragma omp sections
+{
+    #pragma omp section
+    { /* Task A */ }
+          
+    #pragma omp section
+    { /* Task B */ }
+}
+```
+表示任务的分配，其分配的任务并行执行
+
+压缩函数的最后一步异或iv也可以并行执行
+```c++
+	// V(i+1) = ABCDEFGH ^ V(i)
+
+#pragma omp sections
+	{
+#pragma omp section
+		{ ctx->state[0] ^= A; }
+#pragma omp section
+		{ ctx->state[1] ^= B; }
+#pragma omp section
+		{ ctx->state[2] ^= C; }
+#pragma omp section
+		{ ctx->state[3] ^= D; }
+#pragma omp section
+		{ ctx->state[4] ^= E; }
+#pragma omp section
+		{ ctx->state[5] ^= F; }
+#pragma omp section
+		{ ctx->state[6] ^= G; }
+#pragma omp section
+		{ ctx->state[7] ^= H; }
+	}
+```
+
+测试函数：
+```c++
+void sm3_pro(unsigned char* input, unsigned int iLen, unsigned char* output){
+	sm3_ctx ctx;
+	sm3_init(&ctx);
+	sm3_pro_input(&ctx, input, iLen);
+	sm3_pro_do(&ctx, output);
+}
+
+void sm3_pro_test() {
+	unsigned char input[] = "abcdefghijklmnabcdefghijklmnabcdefghijklmnabcdefghijklmnabcdefghijklmnabcdefghijklmnabcdefghijklmnabcdefghijklmnabcdefghijklmnabcdefghijklmn";
+	unsigned char output[32];
+	sm3_pro(input, sizeof(input) - 1, output);
+	cout << "要加密的信息: " << input << endl;
+	cout << "SM3 Hash_pro加密结果: ";
+	for (int i = 0; i < 32; i++) {
+		cout << hex << setw(2) << setfill('0') << (int)output[i];
+	}
+	cout << endl;
+}
+```
+可以看出，优化后的哈希结果与优化前相同，因此优化流程是正确的
+![alt text](image-3.png)
 #### b) SM3验证长度拓展攻击
 首先使用SM3编写MAC，根据长度拓展攻击需求，MAC生成方式为 Hash(key||msg)
 ```c++
@@ -235,6 +526,7 @@ void MAC(unsigned char* msg,size_t msg_size, unsigned char* key, size_t key_size
 	sm3(key_msg, msg_size + key_size, output);//hash(key||msg)
 }
 ```
+
 然后编写MAC验证函数
 ```c++
 bool MAC_verfly(unsigned char* msg, size_t msg_size, unsigned char* key, size_t key_size, unsigned char* mac) {//MAC验证
