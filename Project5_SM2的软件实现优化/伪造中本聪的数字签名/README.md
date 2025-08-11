@@ -1,122 +1,107 @@
-## Project 5: b). SM2 签名算法误用场景的 POC 验证
+## Project 5: C).伪造中本聪的数字签名
 #### 项目分工
 | 姓名 | 分工                     |
 |-------|--------------------------|
-|  崔倡通  | 代码编写及测试   |
-|  童皓琛   |  原理总结及报告编写           |
-
+|  童皓琛   |   报告原理编写          |
+|  崔倡通  | 代码编写测试 |
 ### 项目简介
-本项目验证了SM2签名算法在以下误用场景下的安全性影响并给出了相应推导文档以及验证代码：
-1. 随机数$k$泄露导致私钥$d$泄露
-2. 随机数$k$重复使用导致私钥$d$泄露
-3. 两用户使用相同$k$导致私钥泄露
+本项目基于正常ECDSA签名算法尝试实现伪造中本聪的数字签名：
+
 
 ### 项目内容
-#### 1. 随机数k泄露导致私钥d泄露
-#### (1).推导文档
-在给定$\sigma = (r,s)$和$k$的情况下计算$d_A$计算过程如下：
-- \(s = ((1+d_A)^{-1} \cdot (k-r\cdot d_A)) \mod n \)
-- $s\cdot(1+d_A) = (k-r\cdot d_A) \mod n$
-- $(r+s)\cdot d_A = (k-s) \mod n$
-- $ d_A = (r+s)^{-1}\cdot(k-s) \mod n$
+#### 1. ECDSA签名算法原理
+##### (1).算法参数
+###### 本项目采用比特币中使用的椭圆曲线参数secp256k1 ，具体设置如下：
+椭圆曲线方程为：$y^2=x^3+ax+b$，基点$G=(x_G,y_G)$，其阶记为$n$
+- 素数p： FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFE FFFFFC2F
+- 系数a：00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+- 系数b：00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000007
+- 坐标xG：79BE667E F9DCBBAC 55A06295 CE870B07 029BFCDB 2DCE28D9 59F2815B 16F81798
+- 坐标yG：483ADA77 26A3C465 5DA4FBFC 0E1108A8 FD17B448 A6855419 9C47D08F FB10D4B8
+- 阶n：FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFE BAAEDCE6 AF48A03B BFD25E8C D0364141
+##### (1). 密钥生成算法
+随机选取整数$d$作为私钥，计算$P=dG$作为公钥 
+##### (2).签名算法
+- \(k \leftarrow Z_n^*,R=kG \)
+- $r=R_x \mod n,r\neq 0$
+- $e=hash(m)$
+- $ s = k^{-1}(e+dr) \mod n$
+- 输出签名$(r,s)$
 
-#### (2).验证代码
+##### (3).验证算法
+通过公钥$P$验证签名$(r,s)$:
+- $e=hash(m)$
+- $w = s^{-1} \mod n$
+- $ (r',s') = e\cdot wG+r\cdot wP  \mod n$
+- 若$r'=r$则验证成功，否则验证失败。
+
+#### 2. 伪造签名算法原理
+设待签名的消息为$e$，对$e$进行直接签名，可以按照如下过程构造出一组$(r',s')$和$e'$，使得其可以通过验证算法的验证：
+首先假定$(r',s')$存在，令$a = s'^{-1}e' \mod n,b = s'^{-1}r' \mod n$，进而有
+\[w'(e'\cdot G+r'\cdot P)=a\cdot G+b\cdot P
+\]
+根据以上关系式可以在合适范围内随机选取数$a$和$b$，令
+- $r'=(a\cdot G+b\cdot P)_x$
+- $s'= b^{-1}r' \mod n$
+- $e'= as' \mod n$
+综上通过公共参数和密钥推导出一组可以通过验证的有效签名$(r',s')$和对应消息哈希$e'$
+
+#### 3. 伪造签名算法代码实现
 ```python
-def POC_SM2_sig_leaking_k():
-    """POC验证：随机数k泄露导致私钥泄露"""
-    print("\n===== POC验证：随机数k泄露导致私钥泄露 =====")
-    private_key, pub_x, pub_y = SM2.key()
-    # 生成签名并记录使用的k值
-    test_msg = b"Hello, SM2!"  # 固定测试消息
-    k = SM2.getRandomRange(1, n - 1)  # 生成随机数 k ∈ [1, n-1]
-    user_id = "test_user"      # 用户标识
-    signature = SM2.sm2_sign(test_msg, user_id, private_key, pub_x, pub_y,k)
+def ECDSA_sign(m: str,d: int):
+    """
+    ECDSA 签名算法
+    :param d: 私钥 (整数)
+    :param m: 待签名的消息 (字符串)
+    :return: 签名 (r, s)
+    """
+    e_bytes = hashlib.sha256(m.encode()).digest()   # 计算消息的哈希 e = hash(m)
+    e = bytes_to_long(e_bytes)
+    k = getRandomRange(1, n-1)  # 随机选取 k ∈ [1, n-1]
+    R = k * G                   # 计算 R = kG
+    r = R.x % n                 # 计算 r = R.x mod n
+    k_inv = inverse(k, n)       # 计算 s = k⁻¹ (e + dr) mod n
+    s = (k_inv * (e + d * r)) % n  
+    signature = (r, s)
+    return signature
+
+def ECDSA_verify_signature(e , P, signature):
+    """
+    验证ECDSA签名
+    Args:
+        e : 消息哈希
+        P : 公钥
+        signature(r,s):消息签名
+    Returns:.
+        bool : 验证结果
+    """
     r, s = signature
-    print(f"使用的随机数k: {hex(k)}")
-    print(f"【密钥生成】\n私钥: 0x{private_key:064x}")
-    # 从泄露的k恢复私钥: dA = (k - s) * (s + r)^(-1) mod n
-    denominator = (s + r) % SM2.n
+    if not (1 <= r < n and 1 <= s < n):
+        return False
+    w = inverse(s, n)    #w=s^{−1} modn
+    u1 = (e * w) % n
+    u2 = (r * w) % n
+    P_ = u1 * G + u2 * P
+    return P_.x % n == r
 
-    inv_denom = inverse(denominator, n)
-    recovered_private = ((k - s) * inv_denom) % n
+def forge_Satoshi_Sign():
+    """
+    伪造中本聪的数字签名
+    Returns:.
+        signature(r,s):伪造消息签名
+    """
+    a = getRandomRange(1, n - 1) #随机选取a
+    b = getRandomRange(1, n - 1) #随机选取b
+    R_prime = a * G + b * satoshi_pubkey
+    r_prime = R_prime.x % n
+    b_inv = inverse(b, n)  
+    s_prime = (r_prime * b_inv) % n
 
-    print(f"恢复的私钥: {hex(recovered_private)}")
-    print(f"恢复结果: {'成功 ' if private_key == recovered_private else '失败'}")
+    e_prime = (a * s_prime) % n
+    # 构造伪造的签名
+    forged_signature = (r_prime, s_prime)
+    forged_message_hash = e_prime
+    return forged_signature, forged_message_hash
 ```
-#### 2. 随机数k重复使用导致私钥d泄露
-#### (1).推导文档
-同一用户对消息$M_1$和$M_2$使用相同$k$ 生成签名：
-- $s_1= ((1+d_A)^{-1} \cdot (k-r_1 \cdot d_A)) \mod n$
-- $s_2= ((1+d_A)^{-1} \cdot (k-r_2 \cdot d_A)) \mod n$
-将两式相减移项得
-$d_A=(s_2-s_1)(s_1-s_2+r_1-r_2)^{-1} \mod n$
-#### (2).验证代码
-```python
-def POC_SM2_sig_sameuser_reusing_k():
-    """POC验证：随机数k重复使用导致私钥d泄露"""
-    print("\n===== POC验证：随机数k重复使用导致私钥d泄露 =====")
-    private_key, pub_x, pub_y = SM2.key()
-    # 生成签名并记录使用的k值
-    msg1 = b"Hello, SM2A!"
-    msg2 = b"Hello, SM2B!"
-    k = SM2.getRandomRange(1, n - 1)  # 生成随机数 k ∈ [1, n-1]
-    user_id = "test_user"      # 用户标识
-    print(f"使用的随机数k: {hex(k)}")
-    print(f"【密钥生成】\n私钥: 0x{private_key:064x}")
-    signature1 = SM2.sm2_sign(msg1, user_id, private_key, pub_x, pub_y,k)
-    signature2 = SM2.sm2_sign(msg2, user_id, private_key, pub_x, pub_y,k)
-    
-    r1, s1 = signature1
-    r2, s2 = signature2
-     # 推导公式：dA = (s2 - s1) / (s1 - s2 + r1 - r2) mod n
-    numerator = (s2 - s1) % n
-    denominator = (s1 - s2 + r1 - r2) % n
-    inv_denom = inverse(denominator, n)
-    recovered_private = numerator * inv_denom % n
-    print(f"恢复的私钥: {hex(recovered_private)}")
-    print(f"恢复结果: {'成功 ' if private_key == recovered_private else '失败'}")
-```
-#### 3. 两用户使用相同k导致私钥相互推导
-#### (1).推导文档
-用户A和用户B使用相同的$k$生成签名：
-- $s_1= ((1+d_A)^{-1} \cdot (k-r_1 \cdot d_A)) \mod n$
-- $s_2= ((1+d_B)^{-1} \cdot (k-r_2 \cdot d_B)) \mod n$
-则用户A和用户B可根据上述等式推导出对方的私钥：
-
-- $d_B=(k-s_2) \cdot (s_2+r_2)^{-1}  \mod n$
-- $d_A=(k-s_1) \cdot (s_1+r_1)^{-1}  \mod n$
-#### (2).验证代码
-```python
-def POC_SM2_sig_diff_user_reusing_k():
-    """POC验证：两用户使用相同k导致私钥d泄露"""
-    print("\n===== POC验证：两用户使用相同k导致私钥d泄露 =====")
-    private_keyA, pubA_x, pubA_y = SM2.key()
-    private_keyB, pubB_x, pubB_y = SM2.key()
-    user_id = "userA"      # 用户A标识
-    user_id = "userB"      # 用户A标识
-    k = SM2.getRandomRange(1, n - 1)  # 生成随机数 k ∈ [1, n-1]
-    msgA = b"Hello, SM2A!"
-    msgB = b"Hello, SM2B!"
-    print(f"使用的随机数k: {hex(k)}")
-    print(f"【密钥生成】\n用户A私钥: 0x{private_keyA:064x}")
-    print(f"用户B私钥: 0x{private_keyB:064x}")
-    signatureA = SM2.sm2_sign(msgA, user_id, private_keyA, pubA_x, pubA_y,k)
-    signatureB = SM2.sm2_sign(msgB, user_id, private_keyB, pubB_x, pubB_y,k)
-    
-    r1, s1 = signatureA
-    r2, s2 = signatureB
-    # 恢复用户B的私钥
-    denominator = (s2 + r2) % n
-    inv_denom = inverse(denominator, n)
-    recovered_private_B = ((k - s2) * inv_denom) % n
-    print(f"用户A恢复的私钥d_B: {hex(recovered_private_B)}")
-    print(f"恢复结果: {'成功 ' if private_keyB == recovered_private_B else '失败'}")
-    # 恢复用户A的私钥
-    denominator = (s1 + r1) % n
-    inv_denom = inverse(denominator, n)
-    recovered_private_A = ((k - s1) * inv_denom) % n
-    print(f"用户B恢复的私钥d_A: {hex(recovered_private_A)}")
-    print(f"恢复结果: {'成功 ' if private_keyA == recovered_private_A else '失败'}")
-```
-#### 4. 测试样例结果
+测试结果
 ![alt text](./image/test.png)
