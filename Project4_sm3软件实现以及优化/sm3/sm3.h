@@ -1,5 +1,13 @@
 #pragma once
 #include<iostream>
+#include <random>
+#include<string>
+#include <ctime>
+#include <iomanip>
+#include <chrono>
+#include <cmath>
+#include<omp.h>
+
 using namespace std;
 
 //¶ËÐò×ª»»
@@ -35,17 +43,20 @@ using namespace std;
 
 struct sm3_ctx
 {
-	uint32_t state[8];
-    unsigned char buf[64] = {0};
-	unsigned int buf_len;
-	uint64_t compressed_len;
+    uint32_t state[8];
+    unsigned char buf[64] = { 0 };
+    unsigned int buf_len;
+    uint64_t compressed_len;
 };
 
 const uint32_t T_0 = 0x79cc4519, T_1 = 0x7a879d8a;
 
+
 void sm3_init(sm3_ctx* ctx);
+void sm3_input(sm3_ctx* ctx, const unsigned char* input, unsigned int length);
 void sm3_do(sm3_ctx* ctx, unsigned char* output);
 void sm3_compress(sm3_ctx* ctx);
+void sm3(unsigned char* input, unsigned int iLen, unsigned char* output);
 void sm3_test();
 void ctx_print(sm3_ctx* ctx);
 void buf_print(sm3_ctx* ctx);

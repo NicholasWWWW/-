@@ -1,6 +1,5 @@
 #include"sm3.h"
 
-
 void ctx_print(sm3_ctx* ctx) {
 	cout << "State: ";
 	for (int i = 0; i < 8; i++) {
@@ -40,7 +39,7 @@ void sm3_input(sm3_ctx* ctx, const unsigned char* input, unsigned int length) {
 		ctx->buf_len++;
 		if (ctx->buf_len == 64) { //如果缓冲区满了，则进行压缩
 			sm3_compress(ctx);
-			ctx->compressed_len += 512; 
+			ctx->compressed_len += 512;
 			ctx->buf_len = 0;
 		}
 	}
@@ -71,13 +70,12 @@ void sm3_do(sm3_ctx* ctx, unsigned char* output) {
 
 	GM_PUT_UINT32_BE(high, msglen, 0);
 	GM_PUT_UINT32_BE(low, msglen, 4);
-	
+
 	for (int i = 0; i < 8; i++) {
 		ctx->buf[56 + i] = msglen[i];
 	}
 
-
-	sm3_compress(ctx); 
+	sm3_compress(ctx);
 
 	GM_PUT_UINT32_BE(ctx->state[0], output, 0);
 	GM_PUT_UINT32_BE(ctx->state[1], output, 4);
@@ -92,7 +90,7 @@ void sm3_do(sm3_ctx* ctx, unsigned char* output) {
 
 //压缩函数
 void sm3_compress(sm3_ctx* ctx) {
-	uint32_t W[68],W1[64];
+	uint32_t W[68], W1[64];
 
 
 	// 读取输入数据
@@ -127,80 +125,73 @@ void sm3_compress(sm3_ctx* ctx) {
 		W1[i] = W[i] ^ W[i + 4];
 	}
 
-	cout << endl;
-	cout << "W1:" << endl;
-	for (int i = 0; i < 64; i++)
+	//消息压缩
+	unsigned int SS1;
+	unsigned int SS2;
+	unsigned int TT1;
+	unsigned int TT2;
+	unsigned int A, B, C, D, E, F, G, H;
+	unsigned int Tj;
+	int j;
+
+	// ABCDEFGH = V (i)
+	A = ctx->state[0];
+	B = ctx->state[1];
+	C = ctx->state[2];
+	D = ctx->state[3];
+	E = ctx->state[4];
+	F = ctx->state[5];
+	G = ctx->state[6];
+	H = ctx->state[7];
+
+
+
+	for (j = 0; j < 64; j++)
 	{
-		cout << hex << W1[i] << endl;
+
+		if (j < 16)
+		{
+			Tj = T_0;
+		}
+		else
+		{
+			Tj = T_1;
+		}
+
+		SS1 = ROTL((ROTL(A, 12) + E + ROTL(Tj, j)), 7);
+		SS2 = SS1 ^ ROTL(A, 12);
+
+		if (j < 16)
+		{
+			TT1 = FF_0(A, B, C) + D + SS2 + W1[j];
+			TT2 = GG_0(E, F, G) + H + SS1 + W[j];
+		}
+		else
+		{
+			TT1 = FF_1(A, B, C) + D + SS2 + W1[j];
+			TT2 = GG_1(E, F, G) + H + SS1 + W[j];
+		}
+
+		D = C;
+		C = ROTL(B, 9);
+		B = A;
+		A = TT1;
+		H = G;
+		G = ROTL(F, 19);
+		F = E;
+		E = P_0(TT2);
+
 	}
 
-
-    //消息压缩
-    unsigned int SS1;
-    unsigned int SS2;
-    unsigned int TT1;
-    unsigned int TT2;
-    unsigned int A, B, C, D, E, F, G, H;
-    unsigned int Tj;
-    int j;
-
-    // ABCDEFGH = V (i)
-    A = ctx->state[0];
-    B = ctx->state[1];
-    C = ctx->state[2];
-    D = ctx->state[3];
-    E = ctx->state[4];
-    F = ctx->state[5];
-    G = ctx->state[6];
-    H = ctx->state[7];
-
-
-    for (j = 0; j < 64; j++)
-    {
-
-        if (j < 16)
-        {
-            Tj = T_0;
-        }
-        else
-        {
-            Tj = T_1;
-        }
-        SS1 = ROTL((ROTL(A, 12) + E + ROTL(Tj, j)), 7);
-        SS2 = SS1 ^ ROTL(A, 12);
-
-        if (j < 16)
-        {
-            TT1 = FF_0(A, B, C) + D + SS2 + W1[j];
-            TT2 = GG_0(E, F, G) + H + SS1 + W[j];
-        }
-        else
-        {
-            TT1 = FF_1(A, B, C) + D + SS2 + W1[j];
-            TT2 = GG_1(E, F, G) + H + SS1 + W[j];
-        }
-
-        D = C;
-        C = ROTL(B, 9);
-        B = A;
-        A = TT1;
-        H = G;
-        G = ROTL(F, 19);
-        F = E;
-        E = P_0(TT2);
-    }
-
-
-
-    // V(i+1) = ABCDEFGH ^ V(i)
-    ctx->state[0] ^= A;
-    ctx->state[1] ^= B;
-    ctx->state[2] ^= C;
-    ctx->state[3] ^= D;
-    ctx->state[4] ^= E;
-    ctx->state[5] ^= F;
-    ctx->state[6] ^= G;
-    ctx->state[7] ^= H;
+	// V(i+1) = ABCDEFGH ^ V(i)
+	ctx->state[0] ^= A;
+	ctx->state[1] ^= B;
+	ctx->state[2] ^= C;
+	ctx->state[3] ^= D;
+	ctx->state[4] ^= E;
+	ctx->state[5] ^= F;
+	ctx->state[6] ^= G;
+	ctx->state[7] ^= H;
 
 }
 
@@ -212,13 +203,13 @@ void sm3(unsigned char* input, unsigned int iLen, unsigned char* output) {
 }
 
 void sm3_test() {
-	unsigned char input[] = "abcdefghijklmn";
+	unsigned char input[] = "abcdefghijklmnabcdefghijklmnabcdefghijklmnabcdefghijklmnabcdefghijklmnabcdefghijklmnabcdefghijklmnabcdefghijklmnabcdefghijklmnabcdefghijklmn";
 	unsigned char output[32];
 	sm3(input, sizeof(input) - 1, output);
 	cout << "要加密的信息: " << input << endl;
 	cout << "SM3 Hash加密结果: ";
 	for (int i = 0; i < 32; i++) {
-		cout << hex << (int)output[i];
+		cout << hex << setw(2) << setfill('0') << (int)output[i];
 	}
-
+	cout << endl;
 }

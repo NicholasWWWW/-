@@ -87,16 +87,7 @@ void sm3_pro_compress(sm3_ctx* ctx) {
 	xmm[4] = _mm_shuffle_epi8(xmm[4], vindex);
 
 	//消息拓展
-
-	cout << "xmm:" << endl;
-	mm_print_128(xmm[0]);
-	mm_print_128(xmm[1]);
-	mm_print_128(xmm[2]);
-	mm_print_128(xmm[3]);
-	mm_print_128(xmm[4]);
-
-
-
+	// 
 	// 第1段
 	_mm_storeu_si128((__m128i*)W, xmm[0]);
 	xmm[7] = ROTL_32(xmm[4], 15);
@@ -431,19 +422,6 @@ void sm3_pro_compress(sm3_ctx* ctx) {
 	_mm_storeu_si128((__m128i*)(W1 + 60), _mm_xor_si128(xmm[4], _mm_shuffle_epi32(xmm[5], _MM_SHUFFLE(0, 3, 2, 1))));
 	_mm_storeu_si32((__m128i*)(W1 + 63), _mm_xor_si128(xmm[5], _mm_shuffle_epi32(xmm[6], _MM_SHUFFLE(0, 3, 2, 1))));
 
-	cout << "W1:" << endl;
-	for (int i = 0; i < 64; i++)
-	{
-		cout << hex << W1[i] << endl;
-	}
-	cout << endl;
-	cout << "W:" << endl;
-	for (int i = 0; i < 64; i++)
-	{
-		cout << hex << W[i] << endl;
-	}
-	cout << endl;
-	return;
 	//消息压缩
 	unsigned int SS1;
 	unsigned int SS2;
@@ -463,56 +441,1233 @@ void sm3_pro_compress(sm3_ctx* ctx) {
 	G = ctx->state[6];
 	H = ctx->state[7];
 	
-	for (j = 0; j < 64; j++)
+	//round1
+	SS1 = ROTL((ROTL(A, 12) + E + ROTL(T_0, 0)), 7);
+	SS2 = SS1 ^ ROTL(A, 12);
+#pragma omp sections
 	{
+#pragma omp section
+		{ D = FF_0(A, B, C) + D + SS2 + W1[0]; }
 
-		if (j < 16)
-		{
-			Tj = T_0;
-		}
-		else
-		{
-			Tj = T_1;
-		}
-		SS1 = ROTL((ROTL(A, 12) + E + ROTL(Tj, j)), 7);
-		SS2 = SS1 ^ ROTL(A, 12);
+#pragma omp section
+		{ H = P_0(GG_0(E, F, G) + H + SS1 + W[0]); }
+	}
 
-		if (j < 16)
-		{
-			TT1 = FF_0(A, B, C) + D + SS2 + W1[j];
-			TT2 = GG_0(E, F, G) + H + SS1 + W[j];
-		}
-		else
-		{
-			TT1 = FF_1(A, B, C) + D + SS2 + W1[j];
-			TT2 = GG_1(E, F, G) + H + SS1 + W[j];
-		}
+#pragma omp sections
+	{
+#pragma omp section
+		{ B = ROTL(B, 9); }
 
-		D = C;
-		C = ROTL(B, 9);
-		B = A;
-		A = TT1;
-		H = G;
-		G = ROTL(F, 19);
-		F = E;
-		E = P_0(TT2);
+#pragma omp section
+		{ F = ROTL(F, 19); }
+	}
+
+	//round2
+	SS1 = ROTL((ROTL(D, 12) + H + ROTL(T_0, 1)), 7);
+	SS2 = SS1 ^ ROTL(D, 12);
+#pragma omp sections
+	{
+#pragma omp section
+		{ C = FF_0(D, A, B) + C + SS2 + W1[1]; }
+
+#pragma omp section
+		{ G = P_0(GG_0(H, E, F) + G + SS1 + W[1]); }
+	}
+
+#pragma omp sections
+	{
+#pragma omp section
+		{ A = ROTL(A, 9); }
+
+#pragma omp section
+		{ E = ROTL(E, 19); }
+	}
+
+	//round3
+	SS1 = ROTL((ROTL(C, 12) + G + ROTL(T_0, 2)), 7);
+	SS2 = SS1 ^ ROTL(C, 12);
+#pragma omp sections
+	{
+#pragma omp section
+		{ B = FF_0(C, D, A) + B + SS2 + W1[2]; }
+
+#pragma omp section
+		{ F = P_0(GG_0(G, H, E) + F + SS1 + W[2]); }
+	}
+
+#pragma omp sections
+	{
+#pragma omp section
+		{ D = ROTL(D, 9); }
+
+#pragma omp section
+		{ H = ROTL(H, 19); }
+	}
+
+	//round4
+	SS1 = ROTL((ROTL(B, 12) + F + ROTL(T_0, 3)), 7);
+	SS2 = SS1 ^ ROTL(B, 12);
+#pragma omp sections
+	{
+#pragma omp section
+		{ A = FF_0(B, C, D) + A + SS2 + W1[3]; }
+
+#pragma omp section
+		{ E = P_0(GG_0(F, G, H) + E + SS1 + W[3]); }
+	}
+
+#pragma omp sections
+	{
+#pragma omp section
+		{ C = ROTL(C, 9); }
+
+#pragma omp section
+		{ G = ROTL(G, 19); }
+	}
+	//round5
+	SS1 = ROTL((ROTL(A, 12) + E + ROTL(T_0, 4)), 7);
+	SS2 = SS1 ^ ROTL(A, 12);
+#pragma omp sections
+	{
+#pragma omp section
+		{ D = FF_0(A, B, C) + D + SS2 + W1[4]; }
+
+#pragma omp section
+		{ H = P_0(GG_0(E, F, G) + H + SS1 + W[4]); }
+	}
+
+#pragma omp sections
+	{
+#pragma omp section
+		{ B = ROTL(B, 9); }
+
+#pragma omp section
+		{ F = ROTL(F, 19); }
+	}
+
+	//round6
+	SS1 = ROTL((ROTL(D, 12) + H + ROTL(T_0, 5)), 7);
+	SS2 = SS1 ^ ROTL(D, 12);
+#pragma omp sections
+	{
+#pragma omp section
+		{ C = FF_0(D, A, B) + C + SS2 + W1[5]; }
+
+#pragma omp section
+		{ G = P_0(GG_0(H, E, F) + G + SS1 + W[5]); }
+	}
+
+#pragma omp sections
+	{
+#pragma omp section
+		{ A = ROTL(A, 9); }
+
+#pragma omp section
+		{ E = ROTL(E, 19); }
+	}
+
+	//round7
+	SS1 = ROTL((ROTL(C, 12) + G + ROTL(T_0, 6)), 7);
+	SS2 = SS1 ^ ROTL(C, 12);
+#pragma omp sections
+	{
+#pragma omp section
+		{ B = FF_0(C, D, A) + B + SS2 + W1[6]; }
+
+#pragma omp section
+		{ F = P_0(GG_0(G, H, E) + F + SS1 + W[6]); }
+	}
+
+#pragma omp sections
+	{
+#pragma omp section
+		{ D = ROTL(D, 9); }
+
+#pragma omp section
+		{ H = ROTL(H, 19); }
+	}
+
+	//round8
+	SS1 = ROTL((ROTL(B, 12) + F + ROTL(T_0, 7)), 7);
+	SS2 = SS1 ^ ROTL(B, 12);
+#pragma omp sections
+	{
+#pragma omp section
+		{ A = FF_0(B, C, D) + A + SS2 + W1[7]; }
+
+#pragma omp section
+		{ E = P_0(GG_0(F, G, H) + E + SS1 + W[7]); }
+	}
+
+#pragma omp sections
+	{
+#pragma omp section
+		{ C = ROTL(C, 9); }
+
+#pragma omp section
+		{ G = ROTL(G, 19); }
+	}
+
+	//round9
+	SS1 = ROTL((ROTL(A, 12) + E + ROTL(T_0, 8)), 7);
+	SS2 = SS1 ^ ROTL(A, 12);
+#pragma omp sections
+	{
+#pragma omp section
+		{ D = FF_0(A, B, C) + D + SS2 + W1[8]; }
+
+#pragma omp section
+		{ H = P_0(GG_0(E, F, G) + H + SS1 + W[8]); }
+	}
+
+#pragma omp sections
+	{
+#pragma omp section
+		{ B = ROTL(B, 9); }
+
+#pragma omp section
+		{ F = ROTL(F, 19); }
+	}
+
+	//round10
+	SS1 = ROTL((ROTL(D, 12) + H + ROTL(T_0, 9)), 7);
+	SS2 = SS1 ^ ROTL(D, 12);
+#pragma omp sections
+	{
+#pragma omp section
+		{ C = FF_0(D, A, B) + C + SS2 + W1[9]; }
+
+#pragma omp section
+		{ G = P_0(GG_0(H, E, F) + G + SS1 + W[9]); }
+	}
+
+#pragma omp sections
+	{
+#pragma omp section
+		{ A = ROTL(A, 9); }
+
+#pragma omp section
+		{ E = ROTL(E, 19); }
+	}
+
+	//round11
+	SS1 = ROTL((ROTL(C, 12) + G + ROTL(T_0, 10)), 7);
+	SS2 = SS1 ^ ROTL(C, 12);
+#pragma omp sections
+	{
+#pragma omp section
+		{ B = FF_0(C, D, A) + B + SS2 + W1[10]; }
+
+#pragma omp section
+		{ F = P_0(GG_0(G, H, E) + F + SS1 + W[10]); }
+	}
+
+#pragma omp sections
+	{
+#pragma omp section
+		{ D = ROTL(D, 9); }
+
+#pragma omp section
+		{ H = ROTL(H, 19); }
+	}
+
+	//round12
+	SS1 = ROTL((ROTL(B, 12) + F + ROTL(T_0, 11)), 7);
+	SS2 = SS1 ^ ROTL(B, 12);
+#pragma omp sections
+	{
+#pragma omp section
+		{ A = FF_0(B, C, D) + A + SS2 + W1[11]; }
+
+#pragma omp section
+		{ E = P_0(GG_0(F, G, H) + E + SS1 + W[11]); }
+	}
+
+#pragma omp sections
+	{
+#pragma omp section
+		{ C = ROTL(C, 9); }
+
+#pragma omp section
+		{ G = ROTL(G, 19); }
+	}
+
+	//round13
+	SS1 = ROTL((ROTL(A, 12) + E + ROTL(T_0, 12)), 7);
+	SS2 = SS1 ^ ROTL(A, 12);
+#pragma omp sections
+	{
+#pragma omp section
+		{ D = FF_0(A, B, C) + D + SS2 + W1[12]; }
+
+#pragma omp section
+		{ H = P_0(GG_0(E, F, G) + H + SS1 + W[12]); }
+	}
+
+#pragma omp sections
+	{
+#pragma omp section
+		{ B = ROTL(B, 9); }
+
+#pragma omp section
+		{ F = ROTL(F, 19); }
+	}
+
+	//round14
+	SS1 = ROTL((ROTL(D, 12) + H + ROTL(T_0, 13)), 7);
+	SS2 = SS1 ^ ROTL(D, 12);
+#pragma omp sections
+	{
+#pragma omp section
+		{ C = FF_0(D, A, B) + C + SS2 + W1[13]; }
+
+#pragma omp section
+		{ G = P_0(GG_0(H, E, F) + G + SS1 + W[13]); }
+	}
+
+#pragma omp sections
+	{
+#pragma omp section
+		{ A = ROTL(A, 9); }
+
+#pragma omp section
+		{ E = ROTL(E, 19); }
+	}
+
+	//round15
+	SS1 = ROTL((ROTL(C, 12) + G + ROTL(T_0, 14)), 7);
+	SS2 = SS1 ^ ROTL(C, 12);
+#pragma omp sections
+	{
+#pragma omp section
+		{ B = FF_0(C, D, A) + B + SS2 + W1[14]; }
+
+#pragma omp section
+		{ F = P_0(GG_0(G, H, E) + F + SS1 + W[14]); }
+	}
+
+#pragma omp sections
+	{
+#pragma omp section
+		{ D = ROTL(D, 9); }
+
+#pragma omp section
+		{ H = ROTL(H, 19); }
+	}
+
+	//round16
+	SS1 = ROTL((ROTL(B, 12) + F + ROTL(T_0, 15)), 7);
+	SS2 = SS1 ^ ROTL(B, 12);
+#pragma omp sections
+	{
+#pragma omp section
+		{ A = FF_0(B, C, D) + A + SS2 + W1[15]; }
+
+#pragma omp section
+		{ E = P_0(GG_0(F, G, H) + E + SS1 + W[15]); }
+	}
+
+#pragma omp sections
+	{
+#pragma omp section
+		{ C = ROTL(C, 9); }
+
+#pragma omp section
+		{ G = ROTL(G, 19); }
+	}
+
+	//round17
+	SS1 = ROTL((ROTL(A, 12) + E + ROTL(T_1, 16)), 7);
+	SS2 = SS1 ^ ROTL(A, 12);
+#pragma omp sections
+	{
+#pragma omp section
+		{ D = FF_1(A, B, C) + D + SS2 + W1[16]; }
+
+#pragma omp section
+		{ H = P_0(GG_1(E, F, G) + H + SS1 + W[16]); }
+	}
+
+#pragma omp sections
+	{
+#pragma omp section
+		{ B = ROTL(B, 9); }
+
+#pragma omp section
+		{ F = ROTL(F, 19); }
+	}
+
+	//round18
+	SS1 = ROTL((ROTL(D, 12) + H + ROTL(T_1, 17)), 7);
+	SS2 = SS1 ^ ROTL(D, 12);
+#pragma omp sections
+	{
+#pragma omp section
+		{ C = FF_1(D, A, B) + C + SS2 + W1[17]; }
+#pragma omp section
+		{ G = P_0(GG_1(H, E, F) + G + SS1 + W[17]); }
+	}
+#pragma omp sections
+	{
+#pragma omp section
+		{ A = ROTL(A, 9); }
+#pragma omp section
+		{ E = ROTL(E, 19); }
+	}
+
+	//round19
+	SS1 = ROTL((ROTL(C, 12) + G + ROTL(T_1, 18)), 7);
+	SS2 = SS1 ^ ROTL(C, 12);
+#pragma omp sections
+	{
+#pragma omp section
+		{ B = FF_1(C, D, A) + B + SS2 + W1[18]; }
+#pragma omp section
+		{ F = P_0(GG_1(G, H, E) + F + SS1 + W[18]); }
+	}
+#pragma omp sections
+	{
+#pragma omp section
+		{ D = ROTL(D, 9); }
+#pragma omp section
+		{ H = ROTL(H, 19); }
+	}
+
+	//round20
+	SS1 = ROTL((ROTL(B, 12) + F + ROTL(T_1, 19)), 7);
+	SS2 = SS1 ^ ROTL(B, 12);
+#pragma omp sections
+	{
+#pragma omp section
+		{ A = FF_1(B, C, D) + A + SS2 + W1[19]; }
+#pragma omp section
+		{ E = P_0(GG_1(F, G, H) + E + SS1 + W[19]); }
+	}
+#pragma omp sections
+	{
+#pragma omp section
+		{ C = ROTL(C, 9); }
+#pragma omp section
+		{ G = ROTL(G, 19); }
+	}
+
+	//round21
+	SS1 = ROTL((ROTL(A, 12) + E + ROTL(T_1, 20)), 7);
+	SS2 = SS1 ^ ROTL(A, 12);
+#pragma omp sections
+	{
+#pragma omp section
+		{ D = FF_1(A, B, C) + D + SS2 + W1[20]; }
+#pragma omp section
+		{ H = P_0(GG_1(E, F, G) + H + SS1 + W[20]); }
+	}
+#pragma omp sections
+	{
+#pragma omp section
+		{ B = ROTL(B, 9); }
+#pragma omp section
+		{ F = ROTL(F, 19); }
+	}
+
+	//round22
+	SS1 = ROTL((ROTL(D, 12) + H + ROTL(T_1, 21)), 7);
+	SS2 = SS1 ^ ROTL(D, 12);
+#pragma omp sections
+	{
+#pragma omp section
+		{ C = FF_1(D, A, B) + C + SS2 + W1[21]; }
+#pragma omp section
+		{ G = P_0(GG_1(H, E, F) + G + SS1 + W[21]); }
+	}
+#pragma omp sections
+	{
+#pragma omp section
+		{ A = ROTL(A, 9); }
+#pragma omp section
+		{ E = ROTL(E, 19); }
+	}
+
+	//round23
+	SS1 = ROTL((ROTL(C, 12) + G + ROTL(T_1, 22)), 7);
+	SS2 = SS1 ^ ROTL(C, 12);
+#pragma omp sections
+	{
+#pragma omp section
+		{ B = FF_1(C, D, A) + B + SS2 + W1[22]; }
+#pragma omp section
+		{ F = P_0(GG_1(G, H, E) + F + SS1 + W[22]); }
+	}
+#pragma omp sections
+	{
+#pragma omp section
+		{ D = ROTL(D, 9); }
+#pragma omp section
+		{ H = ROTL(H, 19); }
+	}
+
+	//round24
+	SS1 = ROTL((ROTL(B, 12) + F + ROTL(T_1, 23)), 7);
+	SS2 = SS1 ^ ROTL(B, 12);
+#pragma omp sections
+	{
+#pragma omp section
+		{ A = FF_1(B, C, D) + A + SS2 + W1[23]; }
+#pragma omp section
+		{ E = P_0(GG_1(F, G, H) + E + SS1 + W[23]); }
+	}
+#pragma omp sections
+	{
+#pragma omp section
+		{ C = ROTL(C, 9); }
+#pragma omp section
+		{ G = ROTL(G, 19); }
+	}
+
+	//round25
+	SS1 = ROTL((ROTL(A, 12) + E + ROTL(T_1, 24)), 7);
+	SS2 = SS1 ^ ROTL(A, 12);
+#pragma omp sections
+	{
+#pragma omp section
+		{ D = FF_1(A, B, C) + D + SS2 + W1[24]; }
+#pragma omp section
+		{ H = P_0(GG_1(E, F, G) + H + SS1 + W[24]); }
+	}
+#pragma omp sections
+	{
+#pragma omp section
+		{ B = ROTL(B, 9); }
+#pragma omp section
+		{ F = ROTL(F, 19); }
+	}
+
+	//round26
+	SS1 = ROTL((ROTL(D, 12) + H + ROTL(T_1, 25)), 7);
+	SS2 = SS1 ^ ROTL(D, 12);
+#pragma omp sections
+	{
+#pragma omp section
+		{ C = FF_1(D, A, B) + C + SS2 + W1[25]; }
+#pragma omp section
+		{ G = P_0(GG_1(H, E, F) + G + SS1 + W[25]); }
+	}
+#pragma omp sections
+	{
+#pragma omp section
+		{ A = ROTL(A, 9); }
+#pragma omp section
+		{ E = ROTL(E, 19); }
+	}
+
+	//round27
+	SS1 = ROTL((ROTL(C, 12) + G + ROTL(T_1, 26)), 7);
+	SS2 = SS1 ^ ROTL(C, 12);
+#pragma omp sections
+	{
+#pragma omp section
+		{ B = FF_1(C, D, A) + B + SS2 + W1[26]; }
+#pragma omp section
+		{ F = P_0(GG_1(G, H, E) + F + SS1 + W[26]); }
+	}
+#pragma omp sections
+	{
+#pragma omp section
+		{ D = ROTL(D, 9); }
+#pragma omp section
+		{ H = ROTL(H, 19); }
+	}
+
+	//round28
+	SS1 = ROTL((ROTL(B, 12) + F + ROTL(T_1, 27)), 7);
+	SS2 = SS1 ^ ROTL(B, 12);
+#pragma omp sections
+	{
+#pragma omp section
+		{ A = FF_1(B, C, D) + A + SS2 + W1[27]; }
+#pragma omp section
+		{ E = P_0(GG_1(F, G, H) + E + SS1 + W[27]); }
+	}
+#pragma omp sections
+	{
+#pragma omp section
+		{ C = ROTL(C, 9); }
+#pragma omp section
+		{ G = ROTL(G, 19); }
+	}
+
+	//round29
+	SS1 = ROTL((ROTL(A, 12) + E + ROTL(T_1, 28)), 7);
+	SS2 = SS1 ^ ROTL(A, 12);
+#pragma omp sections
+	{
+#pragma omp section
+		{ D = FF_1(A, B, C) + D + SS2 + W1[28]; }
+#pragma omp section
+		{ H = P_0(GG_1(E, F, G) + H + SS1 + W[28]); }
+	}
+#pragma omp sections
+	{
+#pragma omp section
+		{ B = ROTL(B, 9); }
+#pragma omp section
+		{ F = ROTL(F, 19); }
+	}
+
+	//round30
+	SS1 = ROTL((ROTL(D, 12) + H + ROTL(T_1, 29)), 7);
+	SS2 = SS1 ^ ROTL(D, 12);
+#pragma omp sections
+	{
+#pragma omp section
+		{ C = FF_1(D, A, B) + C + SS2 + W1[29]; }
+#pragma omp section
+		{ G = P_0(GG_1(H, E, F) + G + SS1 + W[29]); }
+	}
+#pragma omp sections
+	{
+#pragma omp section
+		{ A = ROTL(A, 9); }
+#pragma omp section
+		{ E = ROTL(E, 19); }
+	}
+
+	//round31
+	SS1 = ROTL((ROTL(C, 12) + G + ROTL(T_1, 30)), 7);
+	SS2 = SS1 ^ ROTL(C, 12);
+#pragma omp sections
+	{
+#pragma omp section
+		{ B = FF_1(C, D, A) + B + SS2 + W1[30]; }
+#pragma omp section
+		{ F = P_0(GG_1(G, H, E) + F + SS1 + W[30]); }
+	}
+#pragma omp sections
+	{
+#pragma omp section
+		{ D = ROTL(D, 9); }
+#pragma omp section
+		{ H = ROTL(H, 19); }
+	}
+
+	//round32
+	SS1 = ROTL((ROTL(B, 12) + F + ROTL(T_1, 31)), 7);
+	SS2 = SS1 ^ ROTL(B, 12);
+#pragma omp sections
+	{
+#pragma omp section
+		{ A = FF_1(B, C, D) + A + SS2 + W1[31]; }
+#pragma omp section
+		{ E = P_0(GG_1(F, G, H) + E + SS1 + W[31]); }
+	}
+#pragma omp sections
+	{
+#pragma omp section
+		{ C = ROTL(C, 9); }
+#pragma omp section
+		{ G = ROTL(G, 19); }
+	}
+
+	//round33
+	SS1 = ROTL((ROTL(A, 12) + E + ROTL(T_1, 0)), 7);
+	SS2 = SS1 ^ ROTL(A, 12);
+#pragma omp sections
+	{
+#pragma omp section
+		{ D = FF_1(A, B, C) + D + SS2 + W1[32]; }
+#pragma omp section
+		{ H = P_0(GG_1(E, F, G) + H + SS1 + W[32]); }
+	}
+#pragma omp sections
+	{
+#pragma omp section
+		{ B = ROTL(B, 9); }
+#pragma omp section
+		{ F = ROTL(F, 19); }
+	}
+
+	
+	//round34
+	SS1 = ROTL((ROTL(D, 12) + H + ROTL(T_1, 1)), 7);
+	SS2 = SS1 ^ ROTL(D, 12);
+#pragma omp sections
+	{
+#pragma omp section
+		{ C = FF_1(D, A, B) + C + SS2 + W1[33]; }
+#pragma omp section
+		{ G = P_0(GG_1(H, E, F) + G + SS1 + W[33]); }
+	}
+#pragma omp sections
+	{
+#pragma omp section
+		{ A = ROTL(A, 9); }
+#pragma omp section
+		{ E = ROTL(E, 19); }
+	}
+
+	//round35
+	SS1 = ROTL((ROTL(C, 12) + G + ROTL(T_1, 2)), 7);
+	SS2 = SS1 ^ ROTL(C, 12);
+#pragma omp sections
+	{
+#pragma omp section
+		{ B = FF_1(C, D, A) + B + SS2 + W1[34]; }
+#pragma omp section
+		{ F = P_0(GG_1(G, H, E) + F + SS1 + W[34]); }
+	}
+#pragma omp sections
+	{
+#pragma omp section
+		{ D = ROTL(D, 9); }
+#pragma omp section
+		{ H = ROTL(H, 19); }
+	}
+
+	//round36
+	SS1 = ROTL((ROTL(B, 12) + F + ROTL(T_1, 3)), 7);
+	SS2 = SS1 ^ ROTL(B, 12);
+#pragma omp sections
+	{
+#pragma omp section
+		{ A = FF_1(B, C, D) + A + SS2 + W1[35]; }
+#pragma omp section
+		{ E = P_0(GG_1(F, G, H) + E + SS1 + W[35]); }
+	}
+#pragma omp sections
+	{
+#pragma omp section
+		{ C = ROTL(C, 9); }
+#pragma omp section
+		{ G = ROTL(G, 19); }
+	}
+
+	//round37
+	SS1 = ROTL((ROTL(A, 12) + E + ROTL(T_1, 4)), 7);
+	SS2 = SS1 ^ ROTL(A, 12);
+#pragma omp sections
+	{
+#pragma omp section
+		{ D = FF_1(A, B, C) + D + SS2 + W1[36]; }
+#pragma omp section
+		{ H = P_0(GG_1(E, F, G) + H + SS1 + W[36]); }
+	}
+#pragma omp sections
+	{
+#pragma omp section
+		{ B = ROTL(B, 9); }
+#pragma omp section
+		{ F = ROTL(F, 19); }
+	}
+
+	//round38
+	SS1 = ROTL((ROTL(D, 12) + H + ROTL(T_1, 5)), 7);
+	SS2 = SS1 ^ ROTL(D, 12);
+#pragma omp sections
+	{
+#pragma omp section
+		{ C = FF_1(D, A, B) + C + SS2 + W1[37]; }
+#pragma omp section
+		{ G = P_0(GG_1(H, E, F) + G + SS1 + W[37]); }
+	}
+#pragma omp sections
+	{
+#pragma omp section
+		{ A = ROTL(A, 9); }
+#pragma omp section
+		{ E = ROTL(E, 19); }
+	}
+
+	//round39
+	SS1 = ROTL((ROTL(C, 12) + G + ROTL(T_1, 6)), 7);
+	SS2 = SS1 ^ ROTL(C, 12);
+#pragma omp sections
+	{
+#pragma omp section
+		{ B = FF_1(C, D, A) + B + SS2 + W1[38]; }
+#pragma omp section
+		{ F = P_0(GG_1(G, H, E) + F + SS1 + W[38]); }
+	}
+#pragma omp sections
+	{
+#pragma omp section
+		{ D = ROTL(D, 9); }
+#pragma omp section
+		{ H = ROTL(H, 19); }
+	}
+
+	//round40
+	SS1 = ROTL((ROTL(B, 12) + F + ROTL(T_1, 7)), 7);
+	SS2 = SS1 ^ ROTL(B, 12);
+#pragma omp sections
+	{
+#pragma omp section
+		{ A = FF_1(B, C, D) + A + SS2 + W1[39]; }
+#pragma omp section
+		{ E = P_0(GG_1(F, G, H) + E + SS1 + W[39]); }
+	}
+#pragma omp sections
+	{
+#pragma omp section
+		{ C = ROTL(C, 9); }
+#pragma omp section
+		{ G = ROTL(G, 19); }
+	}
+
+	//round41
+	SS1 = ROTL((ROTL(A, 12) + E + ROTL(T_1, 8)), 7);
+	SS2 = SS1 ^ ROTL(A, 12);
+#pragma omp sections
+	{
+#pragma omp section
+		{ D = FF_1(A, B, C) + D + SS2 + W1[40]; }
+#pragma omp section
+		{ H = P_0(GG_1(E, F, G) + H + SS1 + W[40]); }
+	}
+#pragma omp sections
+	{
+#pragma omp section
+		{ B = ROTL(B, 9); }
+#pragma omp section
+		{ F = ROTL(F, 19); }
+	}
+
+	//round42
+	SS1 = ROTL((ROTL(D, 12) + H + ROTL(T_1, 9)), 7);
+	SS2 = SS1 ^ ROTL(D, 12);
+#pragma omp sections
+	{
+#pragma omp section
+		{ C = FF_1(D, A, B) + C + SS2 + W1[41]; }
+#pragma omp section
+		{ G = P_0(GG_1(H, E, F) + G + SS1 + W[41]); }
+	}
+#pragma omp sections
+	{
+#pragma omp section
+		{ A = ROTL(A, 9); }
+#pragma omp section
+		{ E = ROTL(E, 19); }
+	}
+
+	//round43
+	SS1 = ROTL((ROTL(C, 12) + G + ROTL(T_1, 10)), 7);
+	SS2 = SS1 ^ ROTL(C, 12);
+#pragma omp sections
+	{
+#pragma omp section
+		{ B = FF_1(C, D, A) + B + SS2 + W1[42]; }
+#pragma omp section
+		{ F = P_0(GG_1(G, H, E) + F + SS1 + W[42]); }
+	}
+#pragma omp sections
+	{
+#pragma omp section
+		{ D = ROTL(D, 9); }
+#pragma omp section
+		{ H = ROTL(H, 19); }
+	}
+
+	//round44
+	SS1 = ROTL((ROTL(B, 12) + F + ROTL(T_1, 11)), 7);
+	SS2 = SS1 ^ ROTL(B, 12);
+#pragma omp sections
+	{
+#pragma omp section
+		{ A = FF_1(B, C, D) + A + SS2 + W1[43]; }
+#pragma omp section
+		{ E = P_0(GG_1(F, G, H) + E + SS1 + W[43]); }
+	}
+#pragma omp sections
+	{
+#pragma omp section
+		{ C = ROTL(C, 9); }
+#pragma omp section
+		{ G = ROTL(G, 19); }
+	}
+
+	//round45
+	SS1 = ROTL((ROTL(A, 12) + E + ROTL(T_1, 12)), 7);
+	SS2 = SS1 ^ ROTL(A, 12);
+#pragma omp sections
+	{
+#pragma omp section
+		{ D = FF_1(A, B, C) + D + SS2 + W1[44]; }
+#pragma omp section
+		{ H = P_0(GG_1(E, F, G) + H + SS1 + W[44]); }
+	}
+#pragma omp sections
+	{
+#pragma omp section
+		{ B = ROTL(B, 9); }
+#pragma omp section
+		{ F = ROTL(F, 19); }
+	}
+
+	//round46
+	SS1 = ROTL((ROTL(D, 12) + H + ROTL(T_1, 13)), 7);
+	SS2 = SS1 ^ ROTL(D, 12);
+#pragma omp sections
+	{
+#pragma omp section
+		{ C = FF_1(D, A, B) + C + SS2 + W1[45]; }
+#pragma omp section
+		{ G = P_0(GG_1(H, E, F) + G + SS1 + W[45]); }
+	}
+#pragma omp sections
+	{
+#pragma omp section
+		{ A = ROTL(A, 9); }
+#pragma omp section
+		{ E = ROTL(E, 19); }
+	}
+
+	//round47
+	SS1 = ROTL((ROTL(C, 12) + G + ROTL(T_1, 14)), 7);
+	SS2 = SS1 ^ ROTL(C, 12);
+#pragma omp sections
+	{
+#pragma omp section
+		{ B = FF_1(C, D, A) + B + SS2 + W1[46]; }
+#pragma omp section
+		{ F = P_0(GG_1(G, H, E) + F + SS1 + W[46]); }
+	}
+#pragma omp sections
+	{
+#pragma omp section
+		{ D = ROTL(D, 9); }
+#pragma omp section
+		{ H = ROTL(H, 19); }
+	}
+
+	//round48
+	SS1 = ROTL((ROTL(B, 12) + F + ROTL(T_1, 15)), 7);
+	SS2 = SS1 ^ ROTL(B, 12);
+#pragma omp sections
+	{
+#pragma omp section
+		{ A = FF_1(B, C, D) + A + SS2 + W1[47]; }
+#pragma omp section
+		{ E = P_0(GG_1(F, G, H) + E + SS1 + W[47]); }
+	}
+#pragma omp sections
+	{
+#pragma omp section
+		{ C = ROTL(C, 9); }
+#pragma omp section
+		{ G = ROTL(G, 19); }
+	}
+
+	//round49
+	SS1 = ROTL((ROTL(A, 12) + E + ROTL(T_1, 16)), 7);
+	SS2 = SS1 ^ ROTL(A, 12);
+#pragma omp sections
+	{
+#pragma omp section
+		{ D = FF_1(A, B, C) + D + SS2 + W1[48]; }
+#pragma omp section
+		{ H = P_0(GG_1(E, F, G) + H + SS1 + W[48]); }
+	}
+#pragma omp sections
+	{
+#pragma omp section
+		{ B = ROTL(B, 9); }
+#pragma omp section
+		{ F = ROTL(F, 19); }
+	}
+
+	//round50
+	SS1 = ROTL((ROTL(D, 12) + H + ROTL(T_1, 17)), 7);
+	SS2 = SS1 ^ ROTL(D, 12);
+#pragma omp sections
+	{
+#pragma omp section
+		{ C = FF_1(D, A, B) + C + SS2 + W1[49]; }
+#pragma omp section
+		{ G = P_0(GG_1(H, E, F) + G + SS1 + W[49]); }
+	}
+#pragma omp sections
+	{
+#pragma omp section
+		{ A = ROTL(A, 9); }
+#pragma omp section
+		{ E = ROTL(E, 19); }
+	}
+
+	//round51
+	SS1 = ROTL((ROTL(C, 12) + G + ROTL(T_1, 18)), 7);
+	SS2 = SS1 ^ ROTL(C, 12);
+#pragma omp sections
+	{
+#pragma omp section
+		{ B = FF_1(C, D, A) + B + SS2 + W1[50]; }
+#pragma omp section
+		{ F = P_0(GG_1(G, H, E) + F + SS1 + W[50]); }
+	}
+#pragma omp sections
+	{
+#pragma omp section
+		{ D = ROTL(D, 9); }
+#pragma omp section
+		{ H = ROTL(H, 19); }
+	}
+
+	//round52
+	SS1 = ROTL((ROTL(B, 12) + F + ROTL(T_1, 19)), 7);
+	SS2 = SS1 ^ ROTL(B, 12);
+#pragma omp sections
+	{
+#pragma omp section
+		{ A = FF_1(B, C, D) + A + SS2 + W1[51]; }
+#pragma omp section
+		{ E = P_0(GG_1(F, G, H) + E + SS1 + W[51]); }
+	}
+#pragma omp sections
+	{
+#pragma omp section
+		{ C = ROTL(C, 9); }
+#pragma omp section
+		{ G = ROTL(G, 19); }
+	}
+
+	//round53
+	SS1 = ROTL((ROTL(A, 12) + E + ROTL(T_1, 20)), 7);
+	SS2 = SS1 ^ ROTL(A, 12);
+#pragma omp sections
+	{
+#pragma omp section
+		{ D = FF_1(A, B, C) + D + SS2 + W1[52]; }
+#pragma omp section
+		{ H = P_0(GG_1(E, F, G) + H + SS1 + W[52]); }
+	}
+#pragma omp sections
+	{
+#pragma omp section
+		{ B = ROTL(B, 9); }
+#pragma omp section
+		{ F = ROTL(F, 19); }
+	}
+
+	//round54
+	SS1 = ROTL((ROTL(D, 12) + H + ROTL(T_1, 21)), 7);
+	SS2 = SS1 ^ ROTL(D, 12);
+#pragma omp sections
+	{
+#pragma omp section
+		{ C = FF_1(D, A, B) + C + SS2 + W1[53]; }
+#pragma omp section
+		{ G = P_0(GG_1(H, E, F) + G + SS1 + W[53]); }
+	}
+#pragma omp sections
+	{
+#pragma omp section
+		{ A = ROTL(A, 9); }
+#pragma omp section
+		{ E = ROTL(E, 19); }
+	}
+
+	//round55
+	SS1 = ROTL((ROTL(C, 12) + G + ROTL(T_1, 22)), 7);
+	SS2 = SS1 ^ ROTL(C, 12);
+#pragma omp sections
+	{
+#pragma omp section
+		{ B = FF_1(C, D, A) + B + SS2 + W1[54]; }
+#pragma omp section
+		{ F = P_0(GG_1(G, H, E) + F + SS1 + W[54]); }
+	}
+#pragma omp sections
+	{
+#pragma omp section
+		{ D = ROTL(D, 9); }
+#pragma omp section
+		{ H = ROTL(H, 19); }
+	}
+
+	//round56
+	SS1 = ROTL((ROTL(B, 12) + F + ROTL(T_1, 23)), 7);
+	SS2 = SS1 ^ ROTL(B, 12);
+#pragma omp sections
+	{
+#pragma omp section
+		{ A = FF_1(B, C, D) + A + SS2 + W1[55]; }
+#pragma omp section
+		{ E = P_0(GG_1(F, G, H) + E + SS1 + W[55]); }
+	}
+#pragma omp sections
+	{
+#pragma omp section
+		{ C = ROTL(C, 9); }
+#pragma omp section
+		{ G = ROTL(G, 19); }
+	}
+
+	//round57
+	SS1 = ROTL((ROTL(A, 12) + E + ROTL(T_1, 24)), 7);
+	SS2 = SS1 ^ ROTL(A, 12);
+#pragma omp sections
+	{
+#pragma omp section
+		{ D = FF_1(A, B, C) + D + SS2 + W1[56]; }
+#pragma omp section
+		{ H = P_0(GG_1(E, F, G) + H + SS1 + W[56]); }
+	}
+#pragma omp sections
+	{
+#pragma omp section
+		{ B = ROTL(B, 9); }
+#pragma omp section
+		{ F = ROTL(F, 19); }
+	}
+
+	//round58
+	SS1 = ROTL((ROTL(D, 12) + H + ROTL(T_1, 25)), 7);
+	SS2 = SS1 ^ ROTL(D, 12);
+#pragma omp sections
+	{
+#pragma omp section
+		{ C = FF_1(D, A, B) + C + SS2 + W1[57]; }
+#pragma omp section
+		{ G = P_0(GG_1(H, E, F) + G + SS1 + W[57]); }
+	}
+#pragma omp sections
+	{
+#pragma omp section
+		{ A = ROTL(A, 9); }
+#pragma omp section
+		{ E = ROTL(E, 19); }
+	}
+
+	//round59
+	SS1 = ROTL((ROTL(C, 12) + G + ROTL(T_1, 26)), 7);
+	SS2 = SS1 ^ ROTL(C, 12);
+#pragma omp sections
+	{
+#pragma omp section
+		{ B = FF_1(C, D, A) + B + SS2 + W1[58]; }
+#pragma omp section
+		{ F = P_0(GG_1(G, H, E) + F + SS1 + W[58]); }
+	}
+#pragma omp sections
+	{
+#pragma omp section
+		{ D = ROTL(D, 9); }
+#pragma omp section
+		{ H = ROTL(H, 19); }
+	}
+
+	//round60
+	SS1 = ROTL((ROTL(B, 12) + F + ROTL(T_1, 27)), 7);
+	SS2 = SS1 ^ ROTL(B, 12);
+#pragma omp sections
+	{
+#pragma omp section
+		{ A = FF_1(B, C, D) + A + SS2 + W1[59]; }
+#pragma omp section
+		{ E = P_0(GG_1(F, G, H) + E + SS1 + W[59]); }
+	}
+#pragma omp sections
+	{
+#pragma omp section
+		{ C = ROTL(C, 9); }
+#pragma omp section
+		{ G = ROTL(G, 19); }
+	}
+
+	//round61
+	SS1 = ROTL((ROTL(A, 12) + E + ROTL(T_1, 28)), 7);
+	SS2 = SS1 ^ ROTL(A, 12);
+#pragma omp sections
+	{
+#pragma omp section
+		{ D = FF_1(A, B, C) + D + SS2 + W1[60]; }
+#pragma omp section
+		{ H = P_0(GG_1(E, F, G) + H + SS1 + W[60]); }
+	}
+#pragma omp sections
+	{
+#pragma omp section
+		{ B = ROTL(B, 9); }
+#pragma omp section
+		{ F = ROTL(F, 19); }
+	}
+
+	//round62
+	SS1 = ROTL((ROTL(D, 12) + H + ROTL(T_1, 29)), 7);
+	SS2 = SS1 ^ ROTL(D, 12);
+#pragma omp sections
+	{
+#pragma omp section
+		{ C = FF_1(D, A, B) + C + SS2 + W1[61]; }
+#pragma omp section
+		{ G = P_0(GG_1(H, E, F) + G + SS1 + W[61]); }
+	}
+#pragma omp sections
+	{
+#pragma omp section
+		{ A = ROTL(A, 9); }
+#pragma omp section
+		{ E = ROTL(E, 19); }
+	}
+
+	//round63
+	SS1 = ROTL((ROTL(C, 12) + G + ROTL(T_1, 30)), 7);
+	SS2 = SS1 ^ ROTL(C, 12);
+#pragma omp sections
+	{
+#pragma omp section
+		{ B = FF_1(C, D, A) + B + SS2 + W1[62]; }
+#pragma omp section
+		{ F = P_0(GG_1(G, H, E) + F + SS1 + W[62]); }
+	}
+#pragma omp sections
+	{
+#pragma omp section
+		{ D = ROTL(D, 9); }
+#pragma omp section
+		{ H = ROTL(H, 19); }
+	}
+
+	//round64
+	SS1 = ROTL((ROTL(B, 12) + F + ROTL(T_1, 31)), 7);
+	SS2 = SS1 ^ ROTL(B, 12);
+#pragma omp sections
+	{
+#pragma omp section
+		{ A = FF_1(B, C, D) + A + SS2 + W1[63]; }
+#pragma omp section
+		{ E = P_0(GG_1(F, G, H) + E + SS1 + W[63]); }
+	}
+#pragma omp sections
+	{
+#pragma omp section
+		{ C = ROTL(C, 9); }
+#pragma omp section
+		{ G = ROTL(G, 19); }
 	}
 
 
-
 	// V(i+1) = ABCDEFGH ^ V(i)
-	ctx->state[0] ^= A;
-	ctx->state[1] ^= B;
-	ctx->state[2] ^= C;
-	ctx->state[3] ^= D;
-	ctx->state[4] ^= E;
-	ctx->state[5] ^= F;
-	ctx->state[6] ^= G;
-	ctx->state[7] ^= H;
 
+#pragma omp sections
+	{
+#pragma omp section
+		{ ctx->state[0] ^= A; }
+#pragma omp section
+		{ ctx->state[1] ^= B; }
+#pragma omp section
+		{ ctx->state[2] ^= C; }
+#pragma omp section
+		{ ctx->state[3] ^= D; }
+#pragma omp section
+		{ ctx->state[4] ^= E; }
+#pragma omp section
+		{ ctx->state[5] ^= F; }
+#pragma omp section
+		{ ctx->state[6] ^= G; }
+#pragma omp section
+		{ ctx->state[7] ^= H; }
+	}
 }
-
-void sm3_pro(unsigned char* input, unsigned int iLen, unsigned char* output) {
+void sm3_pro(unsigned char* input, unsigned int iLen, unsigned char* output){
 	sm3_ctx ctx;
 	sm3_init(&ctx);
 	sm3_pro_input(&ctx, input, iLen);
@@ -520,12 +1675,13 @@ void sm3_pro(unsigned char* input, unsigned int iLen, unsigned char* output) {
 }
 
 void sm3_pro_test() {
-	unsigned char input[] = "abcdefghijklmn";
+	unsigned char input[] = "abcdefghijklmnabcdefghijklmnabcdefghijklmnabcdefghijklmnabcdefghijklmnabcdefghijklmnabcdefghijklmnabcdefghijklmnabcdefghijklmnabcdefghijklmn";
 	unsigned char output[32];
 	sm3_pro(input, sizeof(input) - 1, output);
 	cout << "要加密的信息: " << input << endl;
-	cout << "SM3 Hash加密结果: ";
+	cout << "SM3 Hash_pro加密结果: ";
 	for (int i = 0; i < 32; i++) {
-		cout << hex << (int)output[i];
+		cout << hex << setw(2) << setfill('0') << (int)output[i];
 	}
+	cout << endl;
 }
